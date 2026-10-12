@@ -1,0 +1,11 @@
+[package]
+name = "texera"
+version = "0.0.1"
+edition = "2024"
+license = "GPL-3.0-only"
+authors = ["feraxhp <feraxhp+gh@gmail.com>"]
+description = "A modular code-editor widget for ratatui, following the **\"Bring Your Own\" (BYO)** philosophy"
+homepage = "https://github.com/feraxhp/texera"
+
+
+[dependencies]
