@@ -1,0 +1,100 @@
+[meta]
+name = "rust"
+extensions = ["rs"]
+
+# Top-level items: `let` does NOT exist here.
+[states.root]
+include = ["comments"]
+rules = [
+    # Only valid on line 0 of the document
+    { match = '^#!.*', token = "keyword.directive", first_line = true },
+    { match = '\bfn\b', token = "keyword.function", push = "fn_signature" },
+    { match = '\b(?:struct|enum|trait|impl|mod|pub|use|const|static|type)\b', token = "keyword" },
+]
+
+# `fn` was just seen: the next identifier is the name of the function.
+[states.fn_signature]
+rules = [
+    { include = "comments" },
+    { match = '[a-zA-Z_]\w*', token = "function.definition", set = "fn_after_name" },
+    { match = '\{', token = "punctuation.bracket", set = "fn_body" },
+    { match = ';', token = "punctuation.delimiter", pop = true },
+]
+
+# Rest of the header: `(params)`, `-> Return`, and then `{` (body) or `;` (declaration).
+[states.fn_after_name]
+rules = [
+    { include = "comments" },
+    { match = '\(', token = "punctuation.bracket", push = "fn_params" },
+    { match = '->', token = "operator" },
+    { match = '\{', token = "punctuation.bracket", set = "fn_body" },
+    { match = ';', token = "punctuation.delimiter", pop = true },
+    { match = '\b(?:u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64|bool|char|str)\b', token = "type.builtin" },
+    { match = '[A-Z]\w*', token = "type" },
+]
+
+[states.fn_params]
+rules = [
+    { include = "comments" },
+    { match = '\)', token = "punctuation.bracket", pop = true },
+    { match = '\(', token = "punctuation.bracket", push = "fn_params" },
+    { include = "expressions" },
+]
+
+# Function body: `let` IS valid here, and nested `{` keep us inside code blocks.
+[states.fn_body]
+rules = [
+    { include = "comments" },
+    { match = '\{', token = "punctuation.bracket", push = "fn_body" },
+    { match = '\}', token = "punctuation.bracket", pop = true },
+    { match = '\blet\b', token = "keyword.declaration" },
+    { match = '\b(?:mut|if|else|match|return|for|while|loop|in|as|break|continue)\b', token = "keyword.control" },
+    { include = "expressions" },
+]
+
+# Reusable expressions with lookahead and string interpolation.
+[states.expressions]
+rules = [
+    { match = '"', token = "string", push = "string_body" },
+    { match = '\b(?:true|false)\b', token = "boolean" },
+    { match = '\b\d[\d_]*(?:\.[\d_]+)?\b', token = "number" },
+    { match = '\b(?:u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64|bool|char|str)\b', token = "type.builtin" },
+    # Lookahead: an identifier is a call ONLY if followed by optional whitespace and '('.
+    # The '(' is not consumed: it is lexed by its own rule below.
+    { match = '[a-zA-Z_]\w*', lookahead = '^\s*\(', token = "function.call" },
+    { match = '[A-Z]\w*', token = "type" },
+    { match = '[a-zA-Z_]\w*', token = "variable" },
+    { match = '[()\[\]]', token = "punctuation.bracket" },
+    { match = '[,;.:]', token = "punctuation.delimiter" },
+    { match = '[-+*/%=<>!&|^?]+', token = "operator" },
+]
+
+# String with interpolation ${...}; an unclosed string is closed automatically at the end of the line.
+[states.string_body]
+pop_on_newline = true
+default_token = "string"
+rules = [
+    { match = '\\.', token = "string.escape" },
+    { match = '\$\{', token = "punctuation.special", push = "interpolation" },
+    { match = '"', token = "string", pop = true },
+]
+
+[states.interpolation]
+rules = [
+    { match = '\}', token = "punctuation.special", pop = true },
+]
+include = ["expressions"]
+
+# Reusable comments (nestable `/* /* ... */ */` through push/pop).
+[states.comments]
+rules = [
+    { match = '//.*', token = "comment" },
+    { match = '/\*', token = "comment", push = "block_comment" },
+]
+
+[states.block_comment]
+default_token = "comment"
+rules = [
+    { match = '/\*', token = "comment", push = "block_comment" },
+    { match = '\*/', token = "comment", pop = true },
+]

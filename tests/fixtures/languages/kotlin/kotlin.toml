@@ -1,0 +1,48 @@
+[meta]
+name = "kotlin"
+extensions = ["kt", "kts"]
+
+[states.root]
+rules = [
+    { match = '//.*', token = "comment" },
+    { match = '/\*', token = "comment", push = "block_comment" },
+    { match = '"""', token = "string", push = "raw_string" },
+    { match = '"', token = "string", push = "string" },
+    { match = '\bfun\b', token = "keyword.function" },
+    { match = '\b(?:if|else|when)\b', token = "keyword.conditional" },
+    { match = '\b(?:while|for|do)\b', token = "keyword.repeat" },
+    { match = '\breturn\b', token = "keyword.return" },
+    { match = '\b(?:class|object|interface|val|var|import|package|is|in|as|override|private|public|data)\b', token = "keyword" },
+    { match = '\b(?:this|super|it)\b', token = "variable.builtin" },
+    { match = '\b(?:Byte|Short|Int|Long|Float|Double|Boolean|Char|String|Array|Map|Set|List)\b', token = "type.builtin" },
+    { match = '\b(?:println|print|arrayOf|listOf|mapOf)\b', token = "function.builtin" },
+    { match = '\b(?:true|false)\b', token = "boolean" },
+    { match = '\b\d+(?:\.\d+)?[fFL]?\b', token = "number" },
+    { match = '[a-z_]\w*', lookahead = '\s*\(', token = "function.call" },
+    { match = '[A-Z]\w*', token = "type" },
+    { match = '[a-zA-Z_]\w*', token = "variable" },
+    { match = '[(){}\[\]]', token = "punctuation.bracket" },
+    { match = '::|[.,;:]', token = "punctuation.delimiter" },
+    { match = '->|[-+*/%=<>!&|]+', token = "operator" },
+]
+
+[states.string]
+pop_on_newline = true
+default_token = "string"
+rules = [
+    { match = '\\.', token = "string.escape" },
+    { match = '"', token = "string", pop = true },
+]
+
+[states.raw_string]
+default_token = "string"
+rules = [
+    { match = '"""', token = "string", pop = true },
+]
+
+[states.block_comment]
+default_token = "comment"
+rules = [
+    { match = '/\*', token = "comment", push = "block_comment" },
+    { match = '\*/', token = "comment", pop = true },
+]

@@ -1,0 +1,28 @@
+[meta]
+name = "markdown"
+extensions = ["md", "markdown"]
+
+[states.root]
+rules = [
+    # Markdown frontmatter: only opens YAML block if '---' is on line 0
+    { match = '^---\s*$', token = "punctuation.delimiter", push = "yaml_frontmatter", first_line = true },
+    { match = '^#{1,6}\s+.*', token = "markup.heading" },
+    # Captures the language name in $1 and delegates to it until the closing fence.
+    { match = '^```\s*([a-zA-Z0-9_-]+)', token = "punctuation.delimiter", embed = "$1", embed_end = '^```\s*$' },
+    # A fence without language: plain, untagged text until the closing fence.
+    { match = '^```\s*$', token = "punctuation.delimiter", embed = "", embed_end = '^```\s*$' },
+    { match = '`[^`\n]+`', token = "markup.raw" },
+    { match = '^\s*(?:[-*+]|\d+\.)\s', token = "punctuation.special" },
+    { match = '^---\s*$', token = "punctuation.special" },
+]
+
+[states.yaml_frontmatter]
+rules = [
+    { match = '^---\s*$', token = "punctuation.delimiter", pop = true },
+    { match = '^[a-zA-Z0-9_-]+', lookahead = '^\s*:', token = "attribute" },
+    { match = ':', token = "punctuation.delimiter" },
+    { match = '"[^"\n]*"', token = "string" },
+    { match = "'[^'\n]*'", token = "string" },
+    { match = '\b(?:true|false|null)\b', token = "constant.builtin" },
+    { match = '\b\d+(?:\.\d+)?\b', token = "number" },
+]
