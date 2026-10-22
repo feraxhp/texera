@@ -14,6 +14,9 @@ Texera is directly inspired by **[CodeMirror 6](https://codemirror.net/)**.
 
 Special thanks and full credit go to **Marijn Haverbeke** and the **CodeMirror 6 community**.
 
+> **¿Examples?**
+> The new version of [ie](https://github.com/feraxhp/ie) was made using this crate.
+
 ---
 
 ## Features
