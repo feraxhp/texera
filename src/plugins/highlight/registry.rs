@@ -50,6 +50,9 @@ use super::lang::{self, Action, CompiledLanguage, EmbedEnd, EmbedName, SyntaxErr
 /// Identifier of a language inside a [`LanguageRegistry`].
 pub type LangId = u16;
 
+/// A token with UTF-8 byte range, generating language identifier, and token name.
+pub type ScopedToken = (Range<usize>, LangId, TokenName);
+
 /// Pseudo language of an `embed` block whose language is not available: nothing is highlighted
 /// until the block's delimiter is found.
 pub const PLAIN_LANG: LangId = u16::MAX;
@@ -218,19 +221,38 @@ impl fmt::Debug for LanguageRegistry {
 
 /// Receives the tokens produced by the lexer.
 trait Sink {
-    fn emit(&mut self, range: Range<usize>, token: &TokenName);
+    fn emit(&mut self, range: Range<usize>, lang_id: LangId, token: &TokenName);
 }
 
 /// Used to compute only the exit state of a line.
 struct NullSink;
 
 impl Sink for NullSink {
-    fn emit(&mut self, _: Range<usize>, _: &TokenName) {}
+    fn emit(&mut self, _: Range<usize>, _: LangId, _: &TokenName) {}
+}
+
+impl Sink for Vec<ScopedToken> {
+    /// Adjacent ranges with the same token and language are merged (`h`,`o`,`l`,`a` -> `hola`).
+    fn emit(&mut self, range: Range<usize>, lang_id: LangId, token: &TokenName) {
+        if range.is_empty() {
+            return;
+        }
+        if let Some((last, last_lang, last_token)) = self.last_mut() {
+            if last.end == range.start
+                && *last_lang == lang_id
+                && (Arc::ptr_eq(last_token, token) || **last_token == **token)
+            {
+                last.end = range.end;
+                return;
+            }
+        }
+        self.push((range, lang_id, token.clone()));
+    }
 }
 
 impl Sink for Vec<(Range<usize>, TokenName)> {
     /// Adjacent ranges with the same token are merged (`h`,`o`,`l`,`a` -> `hola`).
-    fn emit(&mut self, range: Range<usize>, token: &TokenName) {
+    fn emit(&mut self, range: Range<usize>, _lang_id: LangId, token: &TokenName) {
         if range.is_empty() {
             return;
         }
@@ -553,6 +575,21 @@ impl LanguageRegistry {
         self.read_langs().names.clone()
     }
 
+    /// Canonical name of the registered language for a [`LangId`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use texera::LanguageRegistry;
+    ///
+    /// let registry = LanguageRegistry::new();
+    /// let reg = registry.register("rust", "[meta]\nname = \"rust\"\n[states.root]\nrules = []").unwrap();
+    /// assert_eq!(registry.lang_name(reg.lang_id), Some("rust".to_string()));
+    /// ```
+    pub fn lang_name(&self, id: LangId) -> Option<String> {
+        self.read_langs().names.get(id as usize).cloned()
+    }
+
     // ---------------------------------------------------------------------------------------
     // Introspection
     // ---------------------------------------------------------------------------------------
@@ -620,7 +657,7 @@ impl LanguageRegistry {
     /// let tokens = registry.tokenize_first_line(0, "a");
     /// assert_eq!(tokens.len(), 1);
     /// ```
-    pub fn tokenize_first_line(&self, lang: LangId, line: &str) -> Vec<(Range<usize>, TokenName)> {
+    pub fn tokenize_first_line(&self, lang: LangId, line: &str) -> Vec<ScopedToken> {
         let mut state = LexState::DOC_START;
         self.tokenize_line_stateful(lang, line, &mut state)
     }
@@ -637,7 +674,7 @@ impl LanguageRegistry {
     /// let tokens = registry.tokenize_line(0, "xyz");
     /// assert_eq!(tokens.len(), 1);
     /// ```
-    pub fn tokenize_line(&self, lang: LangId, line: &str) -> Vec<(Range<usize>, TokenName)> {
+    pub fn tokenize_line(&self, lang: LangId, line: &str) -> Vec<ScopedToken> {
         let mut state = LexState::BASE;
         self.tokenize_line_stateful(lang, line, &mut state)
     }
@@ -661,10 +698,33 @@ impl LanguageRegistry {
         lang: LangId,
         line: &str,
         state: &mut LexState,
-    ) -> Vec<(Range<usize>, TokenName)> {
+    ) -> Vec<ScopedToken> {
         let mut tokens = Vec::new();
         *state = self.lex(lang, line, *state, &mut tokens);
         tokens
+    }
+
+    /// Tokenizes `line` continuing from `state`, preserving the language that generated each token.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use texera::{LanguageRegistry, LexState};
+    ///
+    /// let registry = LanguageRegistry::new();
+    /// registry.register("test", "[meta]\nname = \"test\"\n[states.root]\nrules = [{ match = '123', token = \"number\" }]").unwrap();
+    /// let mut state = LexState::BASE;
+    /// let tokens = registry.tokenize_line_scoped(0, "123", &mut state);
+    /// assert_eq!(tokens.len(), 1);
+    /// assert_eq!(tokens[0].1, 0);
+    /// ```
+    pub fn tokenize_line_scoped(
+        &self,
+        lang: LangId,
+        line: &str,
+        state: &mut LexState,
+    ) -> Vec<ScopedToken> {
+        self.tokenize_line_stateful(lang, line, state)
     }
 
     /// Exit state of `line` given its `entry` state, without building tokens. Runs the very same
@@ -774,7 +834,12 @@ impl LanguageRegistry {
                 let input = Input::new(line).range(i..).anchored(Anchored::Yes);
                 if let Some(m) = end.regex.search(&input) {
                     if let Some(token) = &end.token {
-                        sink.emit(i..m.end(), token);
+                        let parent_lang = if idx == 0 {
+                            base.lang_id
+                        } else {
+                            stack[idx - 1].lang_id
+                        };
+                        sink.emit(i..m.end(), parent_lang, token);
                     }
                     if idx == 0 {
                         stack.clear();
@@ -825,7 +890,7 @@ impl LanguageRegistry {
                     next = i + char_len_at(line, i);
                 }
                 if let Some(token) = &state.default_token {
-                    sink.emit(i..next, token);
+                    sink.emit(i..next, top.lang_id, token);
                 }
                 i = next;
                 zero_run = 0;
@@ -851,7 +916,7 @@ impl LanguageRegistry {
 
             if end > i {
                 if let Some(token) = &rule.token {
-                    sink.emit(i..end, token);
+                    sink.emit(i..end, top.lang_id, token);
                 }
             }
 
@@ -903,7 +968,7 @@ impl LanguageRegistry {
                 // Nothing consumed: force the cursor forward by one char, whatever the cause.
                 let next = i + char_len_at(line, i);
                 if let Some(token) = &state.default_token {
-                    sink.emit(i..next, token);
+                    sink.emit(i..next, top.lang_id, token);
                 }
                 i = next;
                 zero_run = 0;

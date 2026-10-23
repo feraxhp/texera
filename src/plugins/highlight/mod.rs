@@ -27,7 +27,7 @@ use std::fs;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use ratatui::style::{Color, Style};
 use texera_core::{Extension, State};
@@ -43,7 +43,7 @@ pub use lang::{
 };
 pub use registry::{
     LangId, LanguageRegistry, LexState, Loader, MAX_DEPTH, MAX_POOL_STATES, PLAIN_LANG, Registered,
-    StateFrame,
+    ScopedToken, StateFrame,
 };
 pub use syntax_cache::{SyntaxCache, SyntaxField, SyntaxProgress, SyntaxStats};
 
@@ -113,7 +113,7 @@ impl ThemeMap {
     /// Resolves the color of a token with a descending hierarchical fallback.
     ///
     /// `keyword.operator.arithmetic` is looked up as `keyword.operator.arithmetic`, then
-    /// `keyword.operator`, then `keyword`.
+    /// `keyword.operator`, then `keyword``.
     ///
     /// # Examples
     ///
@@ -204,6 +204,34 @@ impl LanguageToml {
     }
 }
 
+/// Complete definition of a dynamically loaded language pairing grammar and optional theme.
+///
+/// # Examples
+///
+/// ```rust
+/// use texera::{LanguageSpec, ThemeMap};
+///
+/// let spec = LanguageSpec::new("[meta]\nname = \"toy\"\n[states.root]\nrules = []", None);
+/// assert!(spec.theme.is_none());
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LanguageSpec {
+    /// TOML syntax grammar definition.
+    pub grammar: String,
+    /// Optional syntax theme mapping token names to display colors.
+    pub theme: Option<ThemeMap>,
+}
+
+impl LanguageSpec {
+    /// Creates a new [`LanguageSpec`] pairing a grammar and optional theme.
+    pub fn new(grammar: impl Into<String>, theme: Option<ThemeMap>) -> Self {
+        Self {
+            grammar: grammar.into(),
+            theme,
+        }
+    }
+}
+
 /// Returns a [`Loader`] that reads `{dir}/{lang}.toml` or `{dir}/{lang}/{lang}.toml`.
 ///
 /// Compose it with embedded definitions to get *"user files first, built-in as fallback"*:
@@ -224,6 +252,82 @@ pub fn dir_loader(dir: impl Into<PathBuf>) -> impl Fn(&str) -> Option<String> + 
         fs::read_to_string(dir.join(format!("{name}.toml")))
             .or_else(|_| fs::read_to_string(dir.join(name).join(format!("{name}.toml"))))
             .ok()
+    }
+}
+
+/// Returns a loader that loads `{dir}/{lang}.toml` and optionally `{dir}/{lang}.json` (or `{dir}/{lang}/theme.json`).
+///
+/// This loader can be passed to [`HighlightPlugin::with_spec_loader`] to dynamically provide both syntax
+/// grammars and contextual themes on demand.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use texera::{HighlightPlugin, dir_spec_loader};
+///
+/// let plugin = HighlightPlugin::new().with_spec_loader(dir_spec_loader("~/.config/app/syntaxes"));
+/// ```
+pub fn dir_spec_loader(
+    dir: impl Into<PathBuf>,
+) -> impl Fn(&str) -> Option<LanguageSpec> + Send + Sync + 'static {
+    let dir: PathBuf = dir.into();
+    move |name: &str| {
+        if name.is_empty() || name.contains(['/', '\\']) || name.contains("..") {
+            return None;
+        }
+
+        let direct_toml = dir.join(format!("{name}.toml"));
+        if direct_toml.is_file() {
+            let grammar = fs::read_to_string(&direct_toml).ok()?;
+            let theme = ThemeMap::load_from_file(dir.join(format!("{name}.json"))).ok();
+            return Some(LanguageSpec { grammar, theme });
+        }
+
+        let sub = dir.join(name);
+        if sub.is_dir() {
+            let preferred_tomls = [format!("{name}.toml"), "syntax.toml".to_string()];
+            let toml_path = preferred_tomls
+                .iter()
+                .map(|f| sub.join(f))
+                .find(|p| p.is_file())
+                .or_else(|| {
+                    fs::read_dir(&sub)
+                        .ok()?
+                        .filter_map(|e| e.ok().map(|e| e.path()))
+                        .find(|p| {
+                            p.is_file()
+                                && p.extension()
+                                    .and_then(|e| e.to_str())
+                                    .map(str::to_ascii_lowercase)
+                                    .as_deref()
+                                    == Some("toml")
+                        })
+                })?;
+
+            let grammar = fs::read_to_string(toml_path).ok()?;
+            let preferred_themes = ["theme.json".to_string(), format!("{name}.json")];
+            let theme_path = preferred_themes
+                .iter()
+                .map(|f| sub.join(f))
+                .find(|p| p.is_file())
+                .or_else(|| {
+                    fs::read_dir(&sub)
+                        .ok()?
+                        .filter_map(|e| e.ok().map(|e| e.path()))
+                        .find(|p| {
+                            p.is_file()
+                                && p.extension()
+                                    .and_then(|e| e.to_str())
+                                    .map(str::to_ascii_lowercase)
+                                    .as_deref()
+                                    == Some("json")
+                        })
+                });
+            let theme = theme_path.and_then(|p| ThemeMap::load_from_file(p).ok());
+            return Some(LanguageSpec { grammar, theme });
+        }
+
+        None
     }
 }
 
@@ -265,6 +369,7 @@ pub struct HighlightPlugin {
     pub parse_budget: usize,
     /// Languages that failed to compile (`"name: reason"`), kept for diagnostics.
     pub errors: Vec<String>,
+    dynamic_themes: Arc<RwLock<HashMap<String, Arc<ThemeMap>>>>,
     registry: Arc<LanguageRegistry>,
 }
 
@@ -277,6 +382,7 @@ impl Default for HighlightPlugin {
             lookahead_lines: DEFAULT_LOOKAHEAD_LINES,
             parse_budget: DEFAULT_PARSE_BUDGET,
             errors: Vec::new(),
+            dynamic_themes: Arc::new(RwLock::new(HashMap::new())),
             registry: Arc::new(LanguageRegistry::new()),
         }
     }
@@ -333,7 +439,7 @@ impl HighlightPlugin {
         theme: Option<ThemeMap>,
     ) -> Result<(), SyntaxError> {
         self.registry.register(&name, &source)?;
-        let theme = theme.unwrap_or_else(|| self.global_theme.clone());
+        let theme = theme.unwrap_or_default();
         if self.active_language.is_none() {
             self.active_language = Some(name.clone());
         }
@@ -413,6 +519,40 @@ impl HighlightPlugin {
     /// ```
     pub fn with_loader(self, loader: impl Fn(&str) -> Option<String> + Send + Sync + 'static) -> Self {
         self.registry.set_loader(loader);
+        self
+    }
+
+    /// Allows the application to dynamically provide both grammar syntax and an optional theme
+    /// on demand for embedded languages.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use texera::{HighlightPlugin, LanguageSpec};
+    ///
+    /// let plugin = HighlightPlugin::new().with_spec_loader(|name| {
+    ///     if name == "dummy" {
+    ///         Some(LanguageSpec::new("[meta]\nname = \"dummy\"\n[states.root]\nrules = []", None))
+    ///     } else {
+    ///         None
+    ///     }
+    /// });
+    /// ```
+    pub fn with_spec_loader(
+        self,
+        loader: impl Fn(&str) -> Option<LanguageSpec> + Send + Sync + 'static,
+    ) -> Self {
+        let loader = Arc::new(loader);
+        let dt = self.dynamic_themes.clone();
+        self.registry.set_loader(move |name| {
+            let spec = loader(name)?;
+            if let Some(theme) = spec.theme {
+                dt.write()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(name.trim().to_ascii_lowercase(), Arc::new(theme));
+            }
+            Some(spec.grammar)
+        });
         self
     }
 
@@ -571,16 +711,43 @@ impl HighlightPlugin {
         self.active().map(|(id, _)| self.registry.rules_id(id))
     }
 
+    /// Returns the theme associated with the given language identifier, if any.
+    pub fn theme_of_lang_id(&self, lang_id: LangId) -> Option<Arc<ThemeMap>> {
+        let name = self.registry.lang_name(lang_id)?;
+        self.theme_of(&name)
+    }
+
+    /// Returns the theme associated with the given language name, if any.
+    pub fn theme_of(&self, name: &str) -> Option<Arc<ThemeMap>> {
+        let key = name.trim().to_ascii_lowercase();
+        if let Some(l) = self.languages.get(name).or_else(|| self.languages.get(&key)) {
+            if !l.theme.token_colors.is_empty() {
+                return Some(Arc::new(l.theme.clone()));
+            }
+        }
+        if let Some(dt) = self
+            .dynamic_themes
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&key)
+        {
+            if !dt.token_colors.is_empty() {
+                return Some(dt.clone());
+            }
+        }
+        None
+    }
+
     /// Resolves the style of every token of `line`, returning **char** ranges.
     fn styled_tokens(
         &self,
-        lang: LangId,
-        theme: Option<&ThemeMap>,
+        host_lang: LangId,
+        host_theme: Option<&ThemeMap>,
         line: &str,
         entry: LexState,
     ) -> Vec<(Range<usize>, Style)> {
         let mut state = entry;
-        let token_ranges = self.registry.tokenize_line_stateful(lang, line, &mut state);
+        let token_ranges = self.registry.tokenize_line_stateful(host_lang, line, &mut state);
         let ascii = line.is_ascii();
         let mut styled_ranges = Vec::with_capacity(token_ranges.len());
         // Tokens are ordered, so byte -> char conversion only ever moves forward.
@@ -594,10 +761,29 @@ impl HighlightPlugin {
             last_char
         };
 
-        for (range, token) in token_ranges {
-            let color = theme
-                .and_then(|t| t.color_for(&token))
-                .or_else(|| self.global_theme.color_for(&token));
+        let mut last_lang: LangId = u16::MAX;
+        let mut last_theme: Option<Arc<ThemeMap>> = None;
+
+        for (range, token_lang_id, token) in token_ranges {
+            let color = if token_lang_id == host_lang {
+                host_theme
+                    .and_then(|t| t.color_for(&token))
+                    .or_else(|| self.global_theme.color_for(&token))
+            } else {
+                if last_lang != token_lang_id {
+                    last_lang = token_lang_id;
+                    last_theme = self.theme_of_lang_id(token_lang_id);
+                }
+                if let Some(embed_theme) = &last_theme {
+                    // Embedded context has its own theme: ONLY its theme is used, no fallback to host or global
+                    embed_theme.color_for(&token)
+                } else {
+                    // Embedded context has no theme: fallback to host theme, then global theme
+                    host_theme
+                        .and_then(|t| t.color_for(&token))
+                        .or_else(|| self.global_theme.color_for(&token))
+                }
+            };
 
             if let Some(c) = color {
                 let start = to_char(range.start);
@@ -607,10 +793,6 @@ impl HighlightPlugin {
         }
 
         styled_ranges
-    }
-
-    fn theme_of(&self, name: &str) -> Option<&ThemeMap> {
-        self.languages.get(name).map(|l| &l.theme)
     }
 
     /// Extends the highlighter at runtime by scanning a directory.
@@ -688,7 +870,8 @@ impl Highlight for HighlightPlugin {
             return Vec::new();
         };
         let entry = if line_index == 0 { LexState::DOC_START } else { LexState::BASE };
-        self.styled_tokens(lang, self.theme_of(name), line, entry)
+        let host_theme = self.theme_of(name);
+        self.styled_tokens(lang, host_theme.as_deref(), line, entry)
     }
 
     /// Advances the cached parse just enough to cover the visible lines plus the lookahead.
@@ -716,7 +899,8 @@ impl Highlight for HighlightPlugin {
             .field::<SyntaxField>()
             .and_then(|cache| cache.entry_state(line_index, self.registry.rules_id(lang)))
             .unwrap_or(fallback);
-        self.styled_tokens(lang, self.theme_of(name), line, entry)
+        let host_theme = self.theme_of(name);
+        self.styled_tokens(lang, host_theme.as_deref(), line, entry)
     }
 }
 

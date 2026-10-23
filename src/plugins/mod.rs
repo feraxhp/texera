@@ -43,12 +43,14 @@ pub use {
     highlight::HighlightPlugin, 
     highlight::SyntaxProgress, 
     highlight::LanguageToml,
+    highlight::LanguageSpec,
     highlight::SyntaxField, 
     highlight::SyntaxError, 
     highlight::SyntaxCache, 
     highlight::SyntaxStats, 
     highlight::StateFrame, 
     highlight::Registered, 
+    highlight::ScopedToken,
     highlight::TokenName,
     highlight::ThemeMap, 
     highlight::LexState, 
@@ -59,4 +61,5 @@ pub use {
     highlight::MAX_DEPTH, 
 
     highlight::dir_loader, 
+    highlight::dir_spec_loader,
 };

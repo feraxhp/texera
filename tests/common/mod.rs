@@ -37,7 +37,7 @@ pub fn lex(reg: &LanguageRegistry, lang: LangId, lines: &[&str]) -> Vec<(Vec<Tok
             let tokens = reg.tokenize_line_stateful(lang, line, &mut state);
             let toks = tokens
                 .into_iter()
-                .map(|(r, t)| (line[r].to_string(), t.to_string()))
+                .map(|(r, _lang, t)| (line[r].to_string(), t.to_string()))
                 .collect();
             (toks, state)
         })
@@ -57,7 +57,7 @@ pub fn tok(text: &str, token: &str) -> Tok {
 pub fn ranged(reg: &LanguageRegistry, lang: LangId, line: &str) -> Vec<(Range<usize>, String)> {
     reg.tokenize_line(lang, line)
         .into_iter()
-        .map(|(r, t)| (r, t.to_string()))
+        .map(|(r, _lang, t)| (r, t.to_string()))
         .collect()
 }
 

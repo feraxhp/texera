@@ -97,12 +97,14 @@ pub use {
     plugins::HighlightPlugin, 
     plugins::SyntaxProgress, 
     plugins::LanguageToml,
+    plugins::LanguageSpec,
     plugins::SyntaxField, 
     plugins::SyntaxError, 
     plugins::SyntaxCache, 
     plugins::SyntaxStats, 
     plugins::StateFrame, 
     plugins::Registered, 
+    plugins::ScopedToken,
     plugins::TokenName,
     plugins::ThemeMap, 
     plugins::LexState, 
@@ -113,4 +115,5 @@ pub use {
     plugins::MAX_DEPTH, 
 
     plugins::dir_loader, 
+    plugins::dir_spec_loader,
 };

@@ -31,7 +31,7 @@ rules = [ { match = '(?:)', token = "nothing" } ]"#),
             let (reg, lang) = registry(&[(name, src)]);
             for line in ["", "abc 123", "日本語 ñ 🦀", "x x x", &"z".repeat(2000)] {
                 let mut state = LexState::BASE;
-                for (range, _) in reg.tokenize_line_stateful(lang, line, &mut state) {
+                for (range, ..) in reg.tokenize_line_stateful(lang, line, &mut state) {
                     assert!(line.is_char_boundary(range.start) && line.is_char_boundary(range.end));
                     assert!(range.start <= range.end && range.end <= line.len());
                 }
@@ -65,15 +65,13 @@ fn test_zero_width_rules_are_reported_as_warnings() {
 #[test]
 fn test_zero_width_transition_cycles_are_bounded() {
     // A -> B -> A without consuming a single byte, forever.
-    let ping_pong = r#"
-[states.root]
+    let ping_pong = r#"[states.root]
 rules = [ { match = '(?:)', set = "b" } ]
 [states.b]
 rules = [ { match = '(?:)', set = "root" } ]
 "#;
     // Pushing forever without consuming.
-    let pusher = r#"
-[states.root]
+    let pusher = r#"[states.root]
 rules = [ { match = '(?:)', push = "root" } ]
 "#;
     for (name, src) in [("ping_pong", ping_pong), ("pusher", pusher)] {
@@ -90,8 +88,7 @@ rules = [ { match = '(?:)', push = "root" } ]
 #[test]
 fn test_zero_width_lookahead_transition_is_legal() {
     // Leave a state *before* the delimiter, without consuming it.
-    let src = r#"
-[states.root]
+    let src = r#"[states.root]
 rules = [
     { match = '<', token = "open", push = "tag" },
     { match = 'x', token = "text" },
@@ -111,8 +108,7 @@ rules = [ { match = '', lookahead = '>', pop = true } ]
 // Stack underflow / overflow
 // ---------------------------------------------------------------------------------------------
 
-const BRACKETS: &str = r#"
-[states.root]
+const BRACKETS: &str = r#"[states.root]
 rules = [
     { match = '[\{\[\(]', token = "open", push = "inner" },
     { match = '[\}\]\)]', token = "close", pop = true },
@@ -154,7 +150,7 @@ fn test_extreme_nesting_is_capped_and_memory_stays_flat() {
     let toks = reg.tokenize_line_stateful(lang, &line, &mut state);
 
     assert_eq!(reg.stack_of(state, lang).len(), MAX_DEPTH);
-    assert_eq!(toks, vec![(0..10_000, "open".into())], "every brace is still tagged (and merged)");
+    assert_eq!(toks, vec![(0..10_000, lang, "open".into())], "every brace is still tagged (and merged)");
 
     // Repeating it does not intern anything new: memory is flat.
     let pool = reg.pool_len();
@@ -182,8 +178,7 @@ fn test_extreme_nesting_in_json_arrays() {
 #[test]
 fn test_state_pool_is_flushed_when_full_and_the_revision_changes() {
     // Two push targets: every 17-long sequence of `a` / `b` produces a distinct stack.
-    let src = r#"
-[states.root]
+    let src = r#"[states.root]
 rules = [
     { match = 'a', push = "pa" },
     { match = 'b', push = "pb" },
@@ -221,8 +216,7 @@ fn test_cache_is_rebuilt_when_the_pool_is_flushed_while_parsing() {
     use texera::SyntaxField;
     use texera_core::State;
 
-    let src = r#"
-[states.root]
+    let src = r#"[states.root]
 rules = [ { match = 'a', push = "pa" }, { match = 'b', push = "pb" } ]
 [states.pa]
 include = ["root"]
@@ -266,7 +260,7 @@ fn test_multibyte_text_never_splits_a_codepoint() {
     for id in [lang, reg.lang_id("json").unwrap(), reg.lang_id("markdown").unwrap()] {
         let mut state = LexState::BASE;
         for line in lines {
-            for (range, _) in reg.tokenize_line_stateful(id, line, &mut state) {
+            for (range, ..) in reg.tokenize_line_stateful(id, line, &mut state) {
                 assert!(line.is_char_boundary(range.start), "{range:?} in {line:?}");
                 assert!(line.is_char_boundary(range.end), "{range:?} in {line:?}");
             }
@@ -276,8 +270,7 @@ fn test_multibyte_text_never_splits_a_codepoint() {
 
 #[test]
 fn test_styled_tokens_use_char_indices_not_byte_offsets() {
-    let src = r#"
-[states.root]
+    let src = r#"[states.root]
 rules = [
     { match = '"', token = "string", push = "s" },
     { match = '//.*', token = "comment" },
@@ -326,7 +319,7 @@ fn test_random_garbage_never_panics_and_always_terminates() {
                 let line: String = (0..rng.below(40)).map(|_| pieces[rng.below(pieces.len())]).collect();
                 let tokens = reg.tokenize_line_stateful(lang, &line, &mut state);
                 let mut last_end = 0;
-                for (range, _) in tokens {
+                for (range, ..) in tokens {
                     assert!(line.is_char_boundary(range.start) && line.is_char_boundary(range.end));
                     assert!(range.start >= last_end, "tokens are ordered and disjoint");
                     assert!(range.start < range.end);
