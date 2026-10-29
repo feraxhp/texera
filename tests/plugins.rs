@@ -201,3 +201,57 @@ fn test_custom_decoration_plugin_render() {
         );
     }
 }
+
+#[cfg(feature = "whitespace")]
+#[test]
+fn test_whitespace_plugin_default_and_custom() {
+    use texera::WhitespacePlugin;
+
+    // 1. Verify Default settings
+    let plugin = WhitespacePlugin::default();
+    assert_eq!(plugin.space_char, '·');
+    assert_eq!(plugin.tab_filler, ' ');
+    assert_eq!(plugin.tab_terminator, '⇥');
+    assert_eq!(plugin.style, None);
+
+    let state = State::from(" \t");
+    let view = EditorView::new().with_glyph_transformer(plugin);
+
+    let area = Rect::new(0, 0, 10, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    // Space rendered as '·'
+    assert_eq!(buf[(0, 0)].symbol(), "·");
+    // Tab rendered with filler ' ' and terminator '⇥'
+    assert_eq!(buf[(1, 0)].symbol(), " ");
+    assert_eq!(buf[(2, 0)].symbol(), " ");
+    assert_eq!(buf[(3, 0)].symbol(), "⇥");
+
+    // 2. Verify Custom builder methods
+    let custom_plugin = WhitespacePlugin::new()
+        .with_space_char('•')
+        .with_tab_filler('─')
+        .with_tab_terminator('>')
+        .with_style(Style::default().fg(Color::Magenta));
+
+    assert_eq!(custom_plugin.space_char, '•');
+    assert_eq!(custom_plugin.tab_filler, '─');
+    assert_eq!(custom_plugin.tab_terminator, '>');
+    assert_eq!(custom_plugin.style, Some(Style::default().fg(Color::Magenta)));
+
+    let mut buf_custom = Buffer::empty(area);
+    let mut view_state_custom = EditorViewState::new();
+    let view_custom = EditorView::new().with_glyph_transformer(custom_plugin);
+
+    view_custom.bind(&state).render(area, &mut buf_custom, &mut view_state_custom);
+
+    assert_eq!(buf_custom[(0, 0)].symbol(), "•");
+    assert_eq!(buf_custom[(0, 0)].style().fg, Some(Color::Magenta));
+    assert_eq!(buf_custom[(1, 0)].symbol(), "─");
+    assert_eq!(buf_custom[(2, 0)].symbol(), "─");
+    assert_eq!(buf_custom[(3, 0)].symbol(), ">");
+    assert_eq!(buf_custom[(3, 0)].style().fg, Some(Color::Magenta));
+}

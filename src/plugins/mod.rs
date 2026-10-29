@@ -28,6 +28,8 @@ pub mod gutter;
 pub mod highlight;
 pub mod history;
 pub mod unsaved_lines;
+#[cfg(feature = "whitespace")]
+pub mod whitespace;
 
 pub use decorations::CustomDecorationPlugin;
 pub use unsaved_lines::UnsavedLinePlugin;
@@ -35,6 +37,8 @@ pub use gutter::LineNumberPlugin;
 
 pub use history::HistoryCommander;
 pub use history::HistoryPlugin;
+#[cfg(feature = "whitespace")]
+pub use whitespace::WhitespacePlugin;
 
 #[cfg(feature = "highlight")]
 pub use {

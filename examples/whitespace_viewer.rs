@@ -13,9 +13,8 @@ use ratatui::{
     Terminal,
 };
 use texera::{
-    apply_action, DefaultKeymap, EditorAction, EditorView, EditorViewState, GlyphContext,
-    GlyphTransformer, HistoryPlugin, Keymap, LineNumberPlugin, TransformedGlyph,
-    UnsavedLinePlugin, ViewPlugin,
+    apply_action, DefaultKeymap, EditorAction, EditorView, EditorViewState, HistoryPlugin,
+    Keymap, LineNumberPlugin, UnsavedLinePlugin, WhitespacePlugin,
 };
 use texera_core::{AllowMultipleSelections, State, TabSize};
 
@@ -27,6 +26,11 @@ struct TabStylePreset {
 }
 
 const TAB_PRESETS: &[TabStylePreset] = &[
+    TabStylePreset {
+        name: "Default (Space + Tab: '   ⇥')",
+        filler: ' ',
+        terminator: '⇥',
+    },
     TabStylePreset {
         name: "ASCII Arrow (--->)",
         filler: '-',
@@ -53,53 +57,14 @@ const TAB_PRESETS: &[TabStylePreset] = &[
         terminator: '>',
     },
     TabStylePreset {
-        name: "Space + Tab Symbol (   ⇥)",
-        filler: ' ',
-        terminator: '⇥',
-    },
-    TabStylePreset {
         name: "Original Unicode (───→)",
         filler: '─',
         terminator: '→',
     },
 ];
 
-/// Whitespace visualizer plugin replacing spaces with dots and tabs with guided arrows.
-#[derive(Clone)]
-struct WhitespaceVisualizer {
-    style: Style,
-    filler: char,
-    terminator: char,
-}
-
-impl WhitespaceVisualizer {
-    fn new(style: Style, filler: char, terminator: char) -> Self {
-        Self {
-            style,
-            filler,
-            terminator,
-        }
-    }
-}
-
-impl ViewPlugin for WhitespaceVisualizer {}
-
-impl GlyphTransformer for WhitespaceVisualizer {
-    fn transform(&self, ctx: &GlyphContext) -> Option<TransformedGlyph> {
-        match ctx.ch {
-            ' ' => Some(TransformedGlyph::Char('·', Some(self.style))),
-            '\t' => Some(TransformedGlyph::Tab {
-                filler: self.filler,
-                terminator: self.terminator,
-                style: Some(self.style),
-            }),
-            _ => None,
-        }
-    }
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let initial_code = r#"// Whitespace Visualization Example
+    let initial_code = r#"// Whitespace Visualization Example using Texera's WhitespacePlugin
 //
 // Press [F4] to toggle whitespace on/off.
 // Press [F5] to cycle tab size: 2 -> 4 -> 8.
@@ -150,11 +115,9 @@ fn demo_whitespace() {
 
     loop {
         let current_preset = TAB_PRESETS[preset_idx];
-        let whitespace_plugin = WhitespaceVisualizer::new(
-            Style::default().fg(Color::DarkGray),
-            current_preset.filler,
-            current_preset.terminator,
-        );
+        let whitespace_plugin = WhitespacePlugin::default()
+            .with_tab_chars(current_preset.filler, current_preset.terminator)
+            .with_style(Style::default().fg(Color::DarkGray));
 
         terminal.draw(|f| {
             let area = f.area();

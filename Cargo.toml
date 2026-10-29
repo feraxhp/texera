@@ -25,8 +25,9 @@ unicode-segmentation = "1.13.3"
 unicode-width = "0.2.2"
 
 [features]
-default = ["crossterm", "highlight"]
+default = ["crossterm", "highlight", "whitespace"]
 crossterm = ["dep:crossterm"]
+whitespace = []
 highlight = [
     "dep:regex-automata",
     "dep:regex-syntax",
@@ -37,7 +38,7 @@ highlight = [
 
 [[example]]
 name = "whitespace_viewer"
-required-features = ["crossterm", "highlight"]
+required-features = ["crossterm", "highlight", "whitespace"]
 
 [[example]]
 name = "terminal_editor"

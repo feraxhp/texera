@@ -62,6 +62,8 @@ pub use plugins::HistoryCommander;
 pub use plugins::HistoryPlugin;
 pub use plugins::LineNumberPlugin;
 pub use plugins::UnsavedLinePlugin;
+#[cfg(feature = "whitespace")]
+pub use plugins::WhitespacePlugin;
 
 pub use traits::DecorationProvider;
 pub use traits::CommandHandler;
