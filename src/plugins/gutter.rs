@@ -16,9 +16,15 @@
 //! Gutter implementation displaying line numbers and marker columns.
 
 use std::sync::Arc;
+
 use ratatui::style::Style;
-use ratatui::text::{Line, Span};
-use crate::traits::{Gutter, GutterMarker, ViewPlugin, ViewUpdate};
+use ratatui::text::Line;
+use ratatui::text::Span;
+
+use crate::traits::GutterMarker;
+use crate::traits::ViewPlugin;
+use crate::traits::ViewUpdate;
+use crate::traits::Gutter;
 
 /// Gutter plugin providing line numbers and optional attached markers.
 ///
@@ -28,8 +34,11 @@ use crate::traits::{Gutter, GutterMarker, ViewPlugin, ViewUpdate};
 /// # Examples
 ///
 /// ```rust
-/// use ratatui::style::{Color, Style};
-/// use texera::{LineNumberPlugin, UnsavedLinePlugin};
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
+/// use texera::CustomDecorationPlugin;
+/// use texera::UnsavedLinePlugin;
+/// use texera::LineNumberPlugin;
 ///
 /// let gutter = LineNumberPlugin::new()
 ///     .with_style(Style::default().fg(Color::DarkGray))
@@ -74,7 +83,8 @@ impl LineNumberPlugin {
     /// # Examples
     ///
     /// ```rust
-    /// use ratatui::style::{Color, Style};
+    /// use ratatui::style::Color;
+    /// use ratatui::style::Style;
     /// use texera::LineNumberPlugin;
     ///
     /// let gutter = LineNumberPlugin::new().with_style(Style::default().fg(Color::Blue));
@@ -89,7 +99,8 @@ impl LineNumberPlugin {
     /// # Examples
     ///
     /// ```rust
-    /// use texera::{LineNumberPlugin, UnsavedLinePlugin};
+    /// use texera::UnsavedLinePlugin;
+    /// use texera::LineNumberPlugin;
     ///
     /// let gutter = LineNumberPlugin::new().with_marker(UnsavedLinePlugin::new());
     /// ```

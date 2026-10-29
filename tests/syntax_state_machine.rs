@@ -2,18 +2,28 @@
 
 mod common;
 
-use common::*;
+use common::registry;
+use common::ranged;
+use common::tokens;
+use common::JSON;
+use common::RUST;
+use common::has;
+use common::lex;
+use common::tok;
 
-fn json() -> (texera::LanguageRegistry, texera::LangId) {
+use texera::LanguageRegistry;
+use texera::LangId;
+
+fn json() -> (LanguageRegistry, LangId) {
     registry(&[("json", JSON)])
 }
 
-fn rust() -> (texera::LanguageRegistry, texera::LangId) {
+fn rust() -> (LanguageRegistry, LangId) {
     registry(&[("rust", RUST)])
 }
 
 #[test]
-fn test_set_chain_json_key_colon_value_across_lines() {
+fn set_chain_json_key_colon_value_across_lines() {
     let (reg, lang) = json();
     let lines = ["{", "", "  \"llave\"", "", "  :", "", "  \"valor\"", "  ,", "  \"otra\"", "  : 7 }"];
     let out = tokens(&reg, lang, &lines);
@@ -34,7 +44,7 @@ fn test_set_chain_json_key_colon_value_across_lines() {
 }
 
 #[test]
-fn test_set_chain_states_are_visible_in_the_stack() {
+fn set_chain_states_are_visible_in_the_stack() {
     let (reg, lang) = json();
     let states: Vec<_> = lex(&reg, lang, &["{", "\"k\"", ":", "1", "}"])
         .into_iter()
@@ -49,7 +59,7 @@ fn test_set_chain_states_are_visible_in_the_stack() {
 }
 
 #[test]
-fn test_nested_json_objects_and_arrays_restore_the_parent_state() {
+fn nested_json_objects_and_arrays_restore_the_parent_state() {
     let (reg, lang) = json();
     let line = r#"{"a": {"b": [1, "x", {"c": null}]}, "d": true, "e": "s"}"#;
     let toks = &tokens(&reg, lang, &[line])[0];
@@ -68,7 +78,7 @@ fn test_nested_json_objects_and_arrays_restore_the_parent_state() {
 }
 
 #[test]
-fn test_contextual_keyword_let_only_inside_function_bodies() {
+fn contextual_keyword_let_only_inside_function_bodies() {
     let (reg, lang) = rust();
     let line = "let x = 1; fn main() { let y = 2; } let z = 3;";
     let toks = &tokens(&reg, lang, &[line])[0];
@@ -89,7 +99,7 @@ fn test_contextual_keyword_let_only_inside_function_bodies() {
 }
 
 #[test]
-fn test_function_body_nesting_keeps_let_valid_in_inner_blocks() {
+fn function_body_nesting_keeps_let_valid_in_inner_blocks() {
     let (reg, lang) = rust();
     let out = lex(&reg, lang, &["fn f() {", "  if true { let a = 1; }", "  let b = 2;", "}", "let c = 3;"]);
     assert!(has(&out[1].0, "let", "keyword.declaration"));
@@ -100,7 +110,7 @@ fn test_function_body_nesting_keeps_let_valid_in_inner_blocks() {
 }
 
 #[test]
-fn test_nested_block_comments_need_one_pop_per_closing() {
+fn nested_block_comments_need_one_pop_per_closing() {
     let (reg, lang) = rust();
     let lines = ["fn f() {", "/* a /* b */ still comment", "*/ let x = 1;", "}"];
     let out = lex(&reg, lang, &lines);
@@ -115,7 +125,7 @@ fn test_nested_block_comments_need_one_pop_per_closing() {
 }
 
 #[test]
-fn test_nested_block_comment_on_a_single_line() {
+fn nested_block_comment_on_a_single_line() {
     let (reg, lang) = rust();
     let line = "/* nivel 1 /* nivel 2 */ sigue siendo comentario */ fn x() { let y = 1; }";
     let toks = &tokens(&reg, lang, &[line])[0];
@@ -125,7 +135,7 @@ fn test_nested_block_comment_on_a_single_line() {
 }
 
 #[test]
-fn test_string_interpolation_round_trip() {
+fn string_interpolation_round_trip() {
     let (reg, lang) = rust();
     let lines = ["fn f() {", r#""hola ${user.name("admin")} mundo""#, "}"];
     let out = lex(&reg, lang, &lines);
@@ -147,7 +157,7 @@ fn test_string_interpolation_round_trip() {
 }
 
 #[test]
-fn test_interpolation_context_survives_the_line_break() {
+fn interpolation_context_survives_the_line_break() {
     let (reg, lang) = rust();
     let lines = ["fn f() {", "\"abc ${compute(", "  1, \"x\")} tail\"", "}"];
     let out = lex(&reg, lang, &lines);
@@ -166,7 +176,7 @@ fn test_interpolation_context_survives_the_line_break() {
 }
 
 #[test]
-fn test_pop_on_newline_closes_unterminated_strings() {
+fn pop_on_newline_closes_unterminated_strings() {
     let (reg, lang) = rust();
     let lines = ["fn f() {", "\"hola mundo", "let x = 10;"];
     let out = lex(&reg, lang, &lines);
@@ -181,7 +191,7 @@ fn test_pop_on_newline_closes_unterminated_strings() {
 }
 
 #[test]
-fn test_pop_on_newline_pops_every_flagged_state_on_top() {
+fn pop_on_newline_pops_every_flagged_state_on_top() {
     let src = r#"
 [states.root]
 rules = [ { match = 'a', token = "a", push = "x" } ]
@@ -203,7 +213,7 @@ rules = [ { match = 'd', token = "d" } ]
 }
 
 #[test]
-fn test_scan_line_equals_tokenizer_exit_state() {
+fn scan_line_equals_tokenizer_exit_state() {
     let (reg, lang) = rust();
     let lines = [
         "fn f() {", "/* open", "/* nested", "*/ back */ out", "\"str ${x(", "1)}\"", "let a = \"b\";", "}", "//done",
@@ -219,7 +229,7 @@ fn test_scan_line_equals_tokenizer_exit_state() {
 }
 
 #[test]
-fn test_lex_state_is_a_cheap_handle_and_equal_stacks_share_it() {
+fn lex_state_is_a_cheap_handle_and_equal_stacks_share_it() {
     assert_eq!(std::mem::size_of::<texera::LexState>(), 4);
     let (reg, lang) = rust();
     let a = lex(&reg, lang, &["fn f() {", "/*"]);

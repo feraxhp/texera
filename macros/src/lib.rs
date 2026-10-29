@@ -1,8 +1,9 @@
 //! Procedural macros for the Texera editor ecosystem.
 
-use proc_macro::TokenStream;
-use std::fs;
 use std::path::Path;
+use std::fs;
+
+use proc_macro::TokenStream;
 
 /// Scans `dir` (relative to `CARGO_MANIFEST_DIR`) at compile time and embeds every language found:
 /// `dir/<lang>/<lang>.toml` (or `syntax.toml` / any `*.toml`) plus an optional `theme.json`.

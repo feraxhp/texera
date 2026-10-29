@@ -2,8 +2,19 @@
 
 mod common;
 
-use common::*;
-use texera::{LanguageRegistry, LexState};
+use common::MARKDOWN;
+use common::registry;
+use common::token_of;
+use common::ranged;
+use common::tokens;
+use common::JSON;
+use common::RUST;
+use common::has;
+use common::lex;
+use common::tok;
+
+use texera::LanguageRegistry;
+use texera::LexState;
 
 fn compile_err(src: &str) -> String {
     LanguageRegistry::new()
@@ -23,7 +34,7 @@ rules = [
 "#;
 
 #[test]
-fn test_lookahead_is_not_consumed() {
+fn lookahead_is_not_consumed() {
     let (reg, lang) = registry(&[("calls", CALLS)]);
     let ranges = ranged(&reg, lang, "mi_funcion(123)");
 
@@ -36,7 +47,7 @@ fn test_lookahead_is_not_consumed() {
 }
 
 #[test]
-fn test_lookahead_tie_break_in_a_single_pass() {
+fn lookahead_tie_break_in_a_single_pass() {
     let (reg, lang) = registry(&[("calls", CALLS)]);
     let toks = &tokens(&reg, lang, &["foo   (1) + bar"])[0];
 
@@ -46,7 +57,7 @@ fn test_lookahead_tie_break_in_a_single_pass() {
 }
 
 #[test]
-fn test_lookahead_ending_the_line_falls_through_to_the_next_rule() {
+fn lookahead_ending_the_line_falls_through_to_the_next_rule() {
     let (reg, lang) = registry(&[("calls", CALLS)]);
     // No `(` ever follows: plain variables.
     let toks = &tokens(&reg, lang, &["a b", "c"])[0];
@@ -54,7 +65,7 @@ fn test_lookahead_ending_the_line_falls_through_to_the_next_rule() {
 }
 
 #[test]
-fn test_lookahead_uses_the_exact_match_end_with_ambiguous_patterns() {
+fn lookahead_uses_the_exact_match_end_with_ambiguous_patterns() {
     // `a+` followed by `a*b`: the end of `match` must be where the *combined* automaton put it.
     let src = r#"
 [states.root]
@@ -71,7 +82,7 @@ rules = [
 }
 
 #[test]
-fn test_lookahead_leading_caret_is_relative_to_the_match_end() {
+fn lookahead_leading_caret_is_relative_to_the_match_end() {
     let src_caret = r#"
 [states.root]
 rules = [ { match = 'x', lookahead = '^y', token = "xy" }, { match = '.', token = "any" } ]
@@ -86,7 +97,7 @@ rules = [ { match = 'x', lookahead = '^y', token = "xy" }, { match = '.', token 
 }
 
 #[test]
-fn test_strict_rule_precedence() {
+fn strict_rule_precedence() {
     let src = r#"
 [states.root]
 rules = [
@@ -100,7 +111,7 @@ rules = [
 }
 
 #[test]
-fn test_first_matching_rule_wins_even_if_a_later_one_is_longer() {
+fn first_matching_rule_wins_even_if_a_later_one_is_longer() {
     let src = r#"
 [states.root]
 rules = [
@@ -116,7 +127,7 @@ rules = [
 }
 
 #[test]
-fn test_anchors_refer_to_the_start_of_the_line_not_the_cursor() {
+fn anchors_refer_to_the_start_of_the_line_not_the_cursor() {
     let src = r#"
 [states.root]
 rules = [
@@ -133,7 +144,7 @@ rules = [
 }
 
 #[test]
-fn test_include_cycles_are_rejected_cleanly() {
+fn include_cycles_are_rejected_cleanly() {
     let mutual = r#"
 [states.root]
 include = ["a"]
@@ -160,7 +171,7 @@ rules = [ { include = "root" } ]
 }
 
 #[test]
-fn test_include_of_unknown_state_and_unknown_transition_targets_are_errors() {
+fn include_of_unknown_state_and_unknown_transition_targets_are_errors() {
     let err = compile_err("[states.root]\ninclude = [\"nope\"]\n");
     assert!(err.contains("nope"), "{err}");
     let err = compile_err("[states.root]\nrules = [ { match = 'a', push = \"nope\" } ]\n");
@@ -168,7 +179,7 @@ fn test_include_of_unknown_state_and_unknown_transition_targets_are_errors() {
 }
 
 #[test]
-fn test_diamond_includes_are_not_cycles() {
+fn diamond_includes_are_not_cycles() {
     let src = r#"
 [states.root]
 include = ["left", "right"]
@@ -184,7 +195,7 @@ rules = [ { match = 'x', token = "x" } ]
 }
 
 #[test]
-fn test_include_position_follows_the_document_order() {
+fn include_position_follows_the_document_order() {
     // `include` written BEFORE `rules`: the included rules come first and win.
     let before = r#"
 [states.root]
@@ -221,7 +232,7 @@ rules = [ { match = 'a', token = "common" } ]
 }
 
 #[test]
-fn test_included_rules_keep_their_transitions() {
+fn included_rules_keep_their_transitions() {
     let src = r#"
 [states.root]
 include = ["open"]
@@ -238,7 +249,7 @@ include = ["open"]
 }
 
 #[test]
-fn test_default_token_runs_are_merged_into_one_range() {
+fn default_token_runs_are_merged_into_one_range() {
     let src = r#"
 [states.root]
 rules = [ { match = '/\*', token = "comment", push = "block" } ]
@@ -255,7 +266,7 @@ rules = [ { match = '\*/', token = "comment", pop = true } ]
 }
 
 #[test]
-fn test_default_token_run_stops_where_a_rule_matches() {
+fn default_token_run_stops_where_a_rule_matches() {
     let src = r#"
 [states.root]
 default_token = "text"
@@ -270,13 +281,13 @@ rules = [ { match = '\d+', token = "num" } ]
 }
 
 #[test]
-fn test_text_without_default_token_is_left_untagged() {
+fn text_without_default_token_is_left_untagged() {
     let (reg, lang) = registry(&[("calls", CALLS)]);
     assert_eq!(tokens(&reg, lang, &["a ; b"])[0], vec![tok("a", "variable"), tok("b", "variable")]);
 }
 
 #[test]
-fn test_tokens_without_token_name_still_apply_their_transition() {
+fn tokens_without_token_name_still_apply_their_transition() {
     let src = r#"
 [states.root]
 rules = [ { match = '"', push = "s" }, { match = 'x', token = "x" } ]
@@ -291,7 +302,7 @@ rules = [ { match = '"', pop = true } ]
 }
 
 #[test]
-fn test_definition_validation_errors_are_descriptive() {
+fn definition_validation_errors_are_descriptive() {
     let err = compile_err("[states.root]\nrules = [ { token = \"x\" } ]\n");
     assert!(err.contains("missing `match`") && err.contains("root"), "{err}");
 
@@ -321,7 +332,7 @@ fn test_definition_validation_errors_are_descriptive() {
 }
 
 #[test]
-fn test_meta_extensions_resolve_languages() {
+fn meta_extensions_resolve_languages() {
     let reg = LanguageRegistry::new();
     let id = reg.register("rust", RUST).unwrap().lang_id;
     assert_eq!(reg.lang_id("rs"), Some(id));
@@ -333,7 +344,7 @@ fn test_meta_extensions_resolve_languages() {
 }
 
 #[test]
-fn test_shipped_syntaxes_compile_without_warnings() {
+fn shipped_syntaxes_compile_without_warnings() {
     for (name, src) in [("json", JSON), ("rust", RUST), ("markdown", MARKDOWN)] {
         let reg = LanguageRegistry::new();
         let id = reg.register(name, src).unwrap().lang_id;
@@ -342,7 +353,7 @@ fn test_shipped_syntaxes_compile_without_warnings() {
 }
 
 #[test]
-fn test_first_line_true_shebang_exclusive_to_line_zero() {
+fn first_line_true_shebang_exclusive_to_line_zero() {
     let (reg, lang) = registry(&[("rust", RUST)]);
     let lines = [
         "#!/usr/bin/env rust-script",
@@ -359,7 +370,7 @@ fn test_first_line_true_shebang_exclusive_to_line_zero() {
 }
 
 #[test]
-fn test_first_line_true_markdown_frontmatter() {
+fn first_line_true_markdown_frontmatter() {
     let (reg, lang) = registry(&[("markdown", MARKDOWN)]);
 
     // Document with frontmatter on line 0
@@ -388,7 +399,7 @@ fn test_first_line_true_markdown_frontmatter() {
 }
 
 #[test]
-fn test_first_line_degradation_with_nested_push_on_line_zero() {
+fn first_line_degradation_with_nested_push_on_line_zero() {
     let (reg, lang) = registry(&[("rust", RUST)]);
     // Line 0 opens a function (pushing fn_signature and then fn_body)
     let lines = [
@@ -408,7 +419,7 @@ fn test_first_line_degradation_with_nested_push_on_line_zero() {
 }
 
 #[test]
-fn test_first_line_validation_and_reserved_doc_start() {
+fn first_line_validation_and_reserved_doc_start() {
     let compile_err = |src: &str| texera::plugins::highlight::lang::compile(src).unwrap_err().to_string();
 
     // User cannot define [states.doc_start]
@@ -447,8 +458,10 @@ rules = []
 }
 
 #[test]
-fn test_highlight_line_respects_line_index_for_doc_start() {
-    use texera::{Highlight, HighlightPlugin, ThemeMap};
+fn highlight_line_respects_line_index_for_doc_start() {
+    use texera::HighlightPlugin;
+    use texera::Highlight;
+    use texera::ThemeMap;
     let mut theme = ThemeMap::default();
     theme.set_color("keyword.directive", ratatui::style::Color::Yellow);
     let h = HighlightPlugin::new().with_language("rust", RUST, Some(theme));

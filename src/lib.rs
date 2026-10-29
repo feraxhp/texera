@@ -31,7 +31,12 @@
 //! ## Basic Usage
 //!
 //! ```rust
-//! use texera::{EditorView, EditorViewState, DefaultKeymap, apply_action, EditorAction};
+//! use texera::EditorViewState;
+//! use texera::DefaultKeymap;
+//! use texera::EditorAction;
+//! use texera::apply_action;
+//! use texera::EditorView;
+//!
 //! use texera_core::State;
 //!
 //! // 1. Create document state
@@ -53,29 +58,29 @@ pub mod viewport;
 
 pub use input::KeyCombination;
 pub use input::DefaultKeymap;
-pub use input::apply_action;
 pub use input::EditorAction;
+pub use input::apply_action;
 pub use input::Keymap;
 
 pub use plugins::CustomDecorationPlugin;
-pub use plugins::HistoryCommander;
-pub use plugins::HistoryPlugin;
-pub use plugins::LineNumberPlugin;
 pub use plugins::UnsavedLinePlugin;
+pub use plugins::HistoryCommander;
 #[cfg(feature = "whitespace")]
+pub use plugins::LineNumberPlugin;
 pub use plugins::WhitespacePlugin;
+pub use plugins::HistoryPlugin;
 
 pub use traits::DecorationProvider;
-pub use traits::CommandHandler;
-pub use traits::GutterMarker;
-pub use traits::ViewUpdate;
-pub use traits::Decoration;
-pub use traits::ViewPlugin;
-pub use traits::Highlight;
-pub use traits::Gutter;
-pub use traits::GlyphContext;
 pub use traits::GlyphTransformer;
 pub use traits::TransformedGlyph;
+pub use traits::CommandHandler;
+pub use traits::GlyphContext;
+pub use traits::GutterMarker;
+pub use traits::Decoration;
+pub use traits::ViewPlugin;
+pub use traits::ViewUpdate;
+pub use traits::Highlight;
+pub use traits::Gutter;
 
 pub use view::EditorThemeStyles;
 pub use view::BoundEditorView;
@@ -84,8 +89,8 @@ pub use view::render_editor;
 pub use view::EditorWidget;
 pub use view::EditorView;
 
-pub use viewport::visual_pos_to_doc_offset;
 pub use viewport::doc_offset_to_visual_pos;
+pub use viewport::visual_pos_to_doc_offset;
 pub use viewport::compute_visual_lines;
 pub use viewport::wrap_single_line;
 pub use viewport::VisualPosition;

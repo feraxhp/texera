@@ -1,14 +1,23 @@
 use std::time::Instant;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+use texera_core::AllowMultipleSelections;
+use crossterm::event::KeyModifiers;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyCode;
 use ratatui::buffer::Buffer;
+use texera::EditorViewState;
+use texera_core::Selection;
 use ratatui::layout::Rect;
-use texera::{
-    apply_action, render_editor, EditorAction, EditorView, EditorViewState, HistoryPlugin,
-};
-use texera_core::{tr, AllowMultipleSelections, Selection, State};
+use texera::HistoryPlugin;
+use texera::render_editor;
+use texera::EditorAction;
+use texera::apply_action;
+use texera::EditorView;
+use texera_core::State;
+use texera_core::tr;
 
 #[test]
-fn test_multicursor_1000_operations_perf() -> Result<(), Box<dyn std::error::Error>> {
+fn multicursor_1000_operations_perf() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Create a document with 1500 lines
     let mut doc_text = String::new();
     for i in 0..1500 {
@@ -90,7 +99,7 @@ fn test_multicursor_1000_operations_perf() -> Result<(), Box<dyn std::error::Err
 }
 
 #[test]
-fn test_newline_insertion_curve_flatness() -> Result<(), Box<dyn std::error::Error>> {
+fn newline_insertion_curve_flatness() -> Result<(), Box<dyn std::error::Error>> {
     // Tests that continuously holding Enter to add new lines doesn't suffer from
     // quadratic degradation around 450-600 lines or erratic spikes.
     let mut state = State::from("")

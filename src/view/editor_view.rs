@@ -16,15 +16,21 @@
 //! Builder definition and StatefulWidget implementation for the editor view.
 
 use std::sync::Arc;
+
+use ratatui::widgets::StatefulWidget;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
-use ratatui::widgets::StatefulWidget;
 use texera_core::State;
 
-use crate::traits::{DecorationProvider, GlyphTransformer, Gutter, Highlight, ViewPlugin};
-use crate::view::render::{render_editor, EditorThemeStyles};
 use crate::view::view_state::EditorViewState;
+use crate::view::render::EditorThemeStyles;
+use crate::view::render::render_editor;
+use crate::traits::DecorationProvider;
+use crate::traits::GlyphTransformer;
+use crate::traits::ViewPlugin;
+use crate::traits::Highlight;
+use crate::traits::Gutter;
 
 /// The central Ratatui [`StatefulWidget`] definition representing the visual code editor.
 /// Follows a pure Opt-in / Builder pattern: zero overhead by default.
@@ -32,8 +38,10 @@ use crate::view::view_state::EditorViewState;
 /// # Examples
 ///
 /// ```rust
-/// use ratatui::style::{Color, Style};
-/// use texera::{EditorView, LineNumberPlugin};
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
+/// use texera::LineNumberPlugin;
+/// use texera::EditorView;
 ///
 /// let editor = EditorView::new()
 ///     .with_wrap(true)
@@ -88,7 +96,8 @@ impl EditorView {
     /// # Examples
     ///
     /// ```rust
-    /// use ratatui::style::{Color, Style};
+    /// use ratatui::style::Color;
+    /// use ratatui::style::Style;
     /// use texera::EditorView;
     ///
     /// let view = EditorView::new().with_style(Style::default().fg(Color::Green));
@@ -103,8 +112,10 @@ impl EditorView {
     /// # Examples
     ///
     /// ```rust
-    /// use ratatui::style::{Color, Style};
-    /// use texera::{EditorThemeStyles, EditorView};
+    /// use ratatui::style::Color;
+    /// use ratatui::style::Style;
+    /// use texera::EditorThemeStyles;
+    /// use texera::EditorView;
     ///
     /// let styles = EditorThemeStyles {
     ///     primary_cursor: Style::default().bg(Color::Cyan),
@@ -123,7 +134,8 @@ impl EditorView {
     /// # Examples
     ///
     /// ```rust
-    /// use ratatui::style::{Color, Style};
+    /// use ratatui::style::Color;
+    /// use ratatui::style::Style;
     /// use texera::EditorView;
     ///
     /// let view = EditorView::new()
@@ -169,7 +181,8 @@ impl EditorView {
     /// # Examples
     ///
     /// ```rust
-    /// use texera::{EditorView, LineNumberPlugin};
+    /// use texera::LineNumberPlugin;
+    /// use texera::EditorView;
     ///
     /// let view = EditorView::new().with_gutter(LineNumberPlugin::new());
     /// ```
@@ -183,7 +196,8 @@ impl EditorView {
     /// # Examples
     ///
     /// ```rust
-    /// use texera::{EditorView, HighlightPlugin};
+    /// use texera::HighlightPlugin;
+    /// use texera::EditorView;
     ///
     /// let view = EditorView::new().with_highlighter(HighlightPlugin::new());
     /// ```
@@ -197,7 +211,8 @@ impl EditorView {
     /// # Examples
     ///
     /// ```rust
-    /// use texera::{CustomDecorationPlugin, EditorView};
+    /// use texera::CustomDecorationPlugin;
+    /// use texera::EditorView;
     ///
     /// let view = EditorView::new().with_decoration_provider(CustomDecorationPlugin::empty());
     /// ```
@@ -211,7 +226,8 @@ impl EditorView {
     /// # Examples
     ///
     /// ```rust
-    /// use texera::{EditorView, HistoryPlugin};
+    /// use texera::HistoryPlugin;
+    /// use texera::EditorView;
     ///
     /// let view = EditorView::new().with_plugin(HistoryPlugin::new());
     /// ```
@@ -274,7 +290,8 @@ impl EditorView {
     /// ```rust
     /// use ratatui::buffer::Buffer;
     /// use ratatui::layout::Rect;
-    /// use texera::{EditorView, EditorViewState};
+    /// use texera::EditorViewState;
+    /// use texera::EditorView;
     /// use texera_core::State;
     ///
     /// let view = EditorView::new();

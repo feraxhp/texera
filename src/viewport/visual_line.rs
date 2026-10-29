@@ -16,8 +16,9 @@
 //! Visual line representation, word wrapping, and coordinate mapping.
 
 use std::ops::Range;
-use texera_core::Text;
+
 use unicode_segmentation::UnicodeSegmentation;
+use texera_core::Text;
 
 use crate::viewport::metrics::CellMetrics;
 
@@ -266,7 +267,8 @@ pub fn wrap_single_line(
 /// # Examples
 ///
 /// ```rust
-/// use texera::{compute_visual_lines, doc_offset_to_visual_pos};
+/// use texera::doc_offset_to_visual_pos;
+/// use texera::compute_visual_lines;
 /// use texera_core::Text;
 ///
 /// let doc = Text::from("hello\nworld");
@@ -313,7 +315,8 @@ pub fn doc_offset_to_visual_pos(
 /// # Examples
 ///
 /// ```rust
-/// use texera::{compute_visual_lines, visual_pos_to_doc_offset};
+/// use texera::visual_pos_to_doc_offset;
+/// use texera::compute_visual_lines;
 /// use texera_core::Text;
 ///
 /// let doc = Text::from("hello\nworld");

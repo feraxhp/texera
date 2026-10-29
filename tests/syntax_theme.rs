@@ -2,15 +2,20 @@
 
 mod common;
 
-use common::*;
+use common::MARKDOWN;
+use common::RUST;
+
+use texera::LanguageRegistry;
+use texera::HighlightPlugin;
+use texera::dir_spec_loader;
 use ratatui::style::Color;
-use texera::{
-    dir_spec_loader, Highlight, HighlightPlugin, LanguageRegistry, LanguageSpec, ThemeMap,
-};
+use texera::LanguageSpec;
 use texera_core::State;
+use texera::Highlight;
+use texera::ThemeMap;
 
 #[test]
-fn test_multilevel_descending_fallback_with_rsplit_once() {
+fn multilevel_descending_fallback_with_rsplit_once() {
     let mut theme = ThemeMap::default();
     theme.set_color("keyword", Color::Red);
     theme.set_color("keyword.operator", Color::Blue);
@@ -44,24 +49,26 @@ fn test_multilevel_descending_fallback_with_rsplit_once() {
 }
 
 #[test]
-fn test_theme_json_parsing_and_fallback() {
+fn theme_json_parsing_and_fallback() -> Result<(), Box<dyn std::error::Error>> {
     let json = r#"{
         "keyword": "yellow",
         "keyword.function": "magenta",
         "function": "blue",
         "function.call": "light_blue"
     }"#;
-    let theme = ThemeMap::from_json_str(json).expect("Theme JSON should parse");
+    let theme = ThemeMap::from_json_str(json)?;
 
     assert_eq!(theme.color_for("keyword.function"), Some(Color::Magenta));
     assert_eq!(theme.color_for("keyword.conditional"), Some(Color::Yellow));
     assert_eq!(theme.color_for("function.call.method"), Some(Color::LightBlue));
     assert_eq!(theme.color_for("function.builtin"), Some(Color::Blue));
     assert_eq!(theme.color_for("number"), None);
+
+    Ok(())
 }
 
 #[test]
-fn test_context_specific_theme_and_no_fallback_when_theme_present() {
+fn context_specific_theme_and_no_fallback_when_theme_present() {
     let mut md_theme = ThemeMap::default();
     md_theme.set_color("markup.heading", Color::Red);
     md_theme.set_color("punctuation.delimiter", Color::Yellow);
@@ -108,7 +115,7 @@ fn test_context_specific_theme_and_no_fallback_when_theme_present() {
 }
 
 #[test]
-fn test_fallback_to_host_and_global_when_embedded_has_no_theme() {
+fn fallback_to_host_and_global_when_embedded_has_no_theme() {
     let mut md_theme = ThemeMap::default();
     md_theme.set_color("punctuation.delimiter", Color::Yellow);
     md_theme.set_color("keyword", Color::Magenta);
@@ -138,7 +145,7 @@ fn test_fallback_to_host_and_global_when_embedded_has_no_theme() {
 }
 
 #[test]
-fn test_with_spec_loader_dynamic_theming() {
+fn with_spec_loader_dynamic_theming() {
     let mut md_theme = ThemeMap::default();
     md_theme.set_color("punctuation.delimiter", Color::Yellow);
 
@@ -165,28 +172,30 @@ fn test_with_spec_loader_dynamic_theming() {
 }
 
 #[test]
-fn test_dir_spec_loader_loads_grammar_and_theme() {
+fn dir_spec_loader_loads_grammar_and_theme() -> Result<(), Box<dyn std::error::Error>> {
     let tmp = std::env::temp_dir().join("texera_spec_loader_test");
     let _ = std::fs::remove_dir_all(&tmp);
-    std::fs::create_dir_all(&tmp).unwrap();
+    std::fs::create_dir_all(&tmp)?;
 
     let toml_path = tmp.join("toy.toml");
     let json_path = tmp.join("toy.json");
-    std::fs::write(&toml_path, "[meta]\nname = \"toy\"\n[states.root]\nrules = [{ match = 'hello', token = \"keyword\" }]").unwrap();
-    std::fs::write(&json_path, r#"{"keyword": "Cyan"}"#).unwrap();
+    std::fs::write(&toml_path, "[meta]\nname = \"toy\"\n[states.root]\nrules = [{ match = 'hello', token = \"keyword\" }]")?;
+    std::fs::write(&json_path, r#"{"keyword": "Cyan"}"#)?;
 
     let loader = dir_spec_loader(&tmp);
-    let spec = loader("toy").expect("toy spec should load");
+    let spec = loader("toy").ok_or("toy spec should load")?;
     assert!(spec.grammar.contains("toy"));
     assert_eq!(spec.theme.as_ref().and_then(|t| t.color_for("keyword")), Some(Color::Cyan));
 
     let _ = std::fs::remove_dir_all(&tmp);
+    Ok(())
 }
 
 #[test]
-fn test_language_registry_lang_name() {
+fn language_registry_lang_name() -> Result<(), Box<dyn std::error::Error>> {
     let reg = LanguageRegistry::new();
-    let reg_rust = reg.register("rust", "[meta]\nname = \"rust\"\n[states.root]\nrules = []").unwrap();
+    let reg_rust = reg.register("rust", "[meta]\nname = \"rust\"\n[states.root]\nrules = []")?;
     assert_eq!(reg.lang_name(reg_rust.lang_id), Some("rust".to_string()));
     assert_eq!(reg.lang_name(999), None);
+    Ok(())
 }

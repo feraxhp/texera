@@ -16,9 +16,16 @@
 //! Arbitrary text and line decorations overlay plugin.
 
 use std::ops::Range;
+
+use texera_core::RangeSetBuilder;
 use ratatui::style::Style;
-use texera_core::{RangeSet, RangeSetBuilder, State};
-use crate::traits::{Decoration, DecorationProvider, ViewPlugin, ViewUpdate};
+use texera_core::RangeSet;
+use texera_core::State;
+
+use crate::traits::DecorationProvider;
+use crate::traits::Decoration;
+use crate::traits::ViewPlugin;
+use crate::traits::ViewUpdate;
 
 /// Plugin for applying arbitrary custom decorations to the document.
 ///
@@ -27,7 +34,8 @@ use crate::traits::{Decoration, DecorationProvider, ViewPlugin, ViewUpdate};
 /// # Examples
 ///
 /// ```rust
-/// use ratatui::style::{Color, Style};
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
 /// use texera::CustomDecorationPlugin;
 ///
 /// let plugin = CustomDecorationPlugin::empty()
@@ -74,7 +82,8 @@ impl CustomDecorationPlugin {
     /// # Examples
     ///
     /// ```rust
-    /// use ratatui::style::{Color, Style};
+    /// use ratatui::style::Color;
+    /// use ratatui::style::Style;
     /// use texera::CustomDecorationPlugin;
     ///
     /// let plugin = CustomDecorationPlugin::empty()
@@ -95,7 +104,8 @@ impl CustomDecorationPlugin {
     /// # Examples
     ///
     /// ```rust
-    /// use ratatui::style::{Color, Style};
+    /// use ratatui::style::Color;
+    /// use ratatui::style::Style;
     /// use texera::CustomDecorationPlugin;
     ///
     /// let plugin = CustomDecorationPlugin::empty()

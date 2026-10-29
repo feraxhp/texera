@@ -1,17 +1,25 @@
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use texera_core::AllowMultipleSelections;
 use ratatui::widgets::StatefulWidget;
-use texera::{
-    EditorView, EditorViewState, GlyphContext, GlyphTransformer, LineNumberPlugin,
-    TransformedGlyph, ViewPlugin,
-};
-use texera_core::{AllowMultipleSelections, Selection, State, TabSize};
+use ratatui::style::Modifier;
+use texera::GlyphTransformer;
+use texera::LineNumberPlugin;
+use texera::TransformedGlyph;
+use ratatui::buffer::Buffer;
+use texera::EditorViewState;
+use texera_core::Selection;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
+use ratatui::style::Style;
+use texera::GlyphContext;
+use texera_core::TabSize;
+use texera::EditorView;
+use texera::ViewPlugin;
+use texera_core::State;
 
 #[test]
-fn test_render_minimal_without_gutter() {
+fn render_minimal_without_gutter() {
     let state = State::from("Hello, Texera!");
-    let view = EditorView::new(); // Sin gutter por defecto
+    let view = EditorView::new(); // No gutter by default
 
     let area = Rect::new(0, 0, 20, 5);
     let mut buf = Buffer::empty(area);
@@ -28,7 +36,7 @@ fn test_render_minimal_without_gutter() {
 }
 
 #[test]
-fn test_render_with_line_gutter() {
+fn render_with_line_gutter() {
     let state = State::from("First\nSecond\nThird");
     let view = EditorView::new().with_gutter(LineNumberPlugin::default());
 
@@ -48,7 +56,7 @@ fn test_render_with_line_gutter() {
 }
 
 #[test]
-fn test_render_text_selection() {
+fn render_text_selection() {
     // Select "World" in "Hello World" -> from 6 to 11
     let selection = Selection::from([Selection::range(6, 11)]);
     let state = State::with_selection("Hello World", selection);
@@ -75,7 +83,7 @@ fn test_render_text_selection() {
 }
 
 #[test]
-fn test_render_multiple_cursors() {
+fn render_multiple_cursors() {
     let state = State::with_selection(
         "aaa\nbbb\nccc",
         Selection::from([
@@ -102,7 +110,7 @@ fn test_render_multiple_cursors() {
 }
 
 #[test]
-fn test_render_soft_wrapping() {
+fn render_soft_wrapping() {
     let state = State::from("word1 word2 word3 word4");
     // View with wrap enabled and width 12
     let view = EditorView::new().with_wrap(true);
@@ -208,7 +216,7 @@ impl GlyphTransformer for FacetCheckingTransformer {
 }
 
 #[test]
-fn test_glyph_transformer_space_to_dot() {
+fn glyph_transformer_space_to_dot() {
     let state = State::from("hello world");
     let view = EditorView::new().with_glyph_transformer(SpaceToDotTransformer);
 
@@ -224,7 +232,7 @@ fn test_glyph_transformer_space_to_dot() {
 }
 
 #[test]
-fn test_glyph_transformer_tab_with_arrow() {
+fn glyph_transformer_tab_with_arrow() {
     let state = State::from("\tfoo");
     let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
 
@@ -242,7 +250,7 @@ fn test_glyph_transformer_tab_with_arrow() {
 }
 
 #[test]
-fn test_glyph_transformer_tab_width_one() {
+fn glyph_transformer_tab_width_one() {
     let state = State::from("abc\t");
     let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
 
@@ -259,7 +267,7 @@ fn test_glyph_transformer_tab_width_one() {
 }
 
 #[test]
-fn test_glyph_transformer_tab_width_two() {
+fn glyph_transformer_tab_width_two() {
     let state = State::from("ab\t");
     let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
 
@@ -276,7 +284,7 @@ fn test_glyph_transformer_tab_width_two() {
 }
 
 #[test]
-fn test_glyph_transformer_tab_width_three() {
+fn glyph_transformer_tab_width_three() {
     let state = State::from("a\t");
     let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
 
@@ -293,7 +301,7 @@ fn test_glyph_transformer_tab_width_three() {
 }
 
 #[test]
-fn test_glyph_transformer_custom_style() {
+fn glyph_transformer_custom_style() {
     let state = State::from("a b");
     let view = EditorView::new().with_glyph_transformer(StyledSpaceTransformer(Color::Cyan));
 
@@ -308,7 +316,7 @@ fn test_glyph_transformer_custom_style() {
 }
 
 #[test]
-fn test_glyph_transformer_preserves_selection_background() {
+fn glyph_transformer_preserves_selection_background() {
     let selection = Selection::from([Selection::range(0, 3)]);
     let state = State::with_selection("a b", selection);
     let view = EditorView::new().with_glyph_transformer(SpaceToDotTransformer);
@@ -324,7 +332,7 @@ fn test_glyph_transformer_preserves_selection_background() {
 }
 
 #[test]
-fn test_glyph_transformer_preserves_cursor_style() {
+fn glyph_transformer_preserves_cursor_style() {
     let selection = Selection::from([Selection::cursor(1)]);
     let state = State::with_selection("a b", selection);
     let view = EditorView::new().with_glyph_transformer(SpaceToDotTransformer);
@@ -340,7 +348,7 @@ fn test_glyph_transformer_preserves_cursor_style() {
 }
 
 #[test]
-fn test_glyph_transformer_fallback_none() {
+fn glyph_transformer_fallback_none() {
     let state = State::from("a\tb c");
     let view = EditorView::new().with_glyph_transformer(SpaceToDotTransformer);
 
@@ -361,7 +369,7 @@ fn test_glyph_transformer_fallback_none() {
 }
 
 #[test]
-fn test_glyph_transformer_multiple_chain() {
+fn glyph_transformer_multiple_chain() {
     let state = State::from(" \t");
     let view = EditorView::new()
         .with_glyph_transformer(SpaceToDotTransformer)
@@ -380,7 +388,7 @@ fn test_glyph_transformer_multiple_chain() {
 }
 
 #[test]
-fn test_glyph_transformer_with_horizontal_scroll() {
+fn glyph_transformer_with_horizontal_scroll() {
     // Put cursor at the end of the text (offset 5) so autoscroll doesn't reset scroll_x to 0
     let state = State::with_selection("\ttext", Selection::from([Selection::cursor(5)]));
     let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
@@ -406,7 +414,7 @@ fn test_glyph_transformer_with_horizontal_scroll() {
 }
 
 #[test]
-fn test_glyph_transformer_cells_variant() {
+fn glyph_transformer_cells_variant() {
     let state = State::from("\t");
     let view = EditorView::new().with_glyph_transformer(CellsTabTransformer);
 
@@ -423,7 +431,7 @@ fn test_glyph_transformer_cells_variant() {
 }
 
 #[test]
-fn test_glyph_transformer_reads_state_tab_size_facet() {
+fn glyph_transformer_reads_state_tab_size_facet() {
     let state = State::from("\t").with_extensions(TabSize(2));
     let view = EditorView::new().with_glyph_transformer(FacetCheckingTransformer);
 

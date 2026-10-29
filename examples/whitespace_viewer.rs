@@ -1,22 +1,37 @@
 use std::io::stdout;
 
-use crossterm::{
-    event::{self, Event, KeyCode, KeyModifiers},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use ratatui::{
-    backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
-    widgets::{Block, Borders, Paragraph},
-    Terminal,
-};
-use texera::{
-    apply_action, DefaultKeymap, EditorAction, EditorView, EditorViewState, HistoryPlugin,
-    Keymap, LineNumberPlugin, UnsavedLinePlugin, WhitespacePlugin,
-};
-use texera_core::{AllowMultipleSelections, State, TabSize};
+use crossterm::terminal::EnterAlternateScreen;
+use crossterm::terminal::LeaveAlternateScreen;
+use crossterm::terminal::disable_raw_mode;
+use texera_core::AllowMultipleSelections;
+use crossterm::terminal::enable_raw_mode;
+use ratatui::backend::CrosstermBackend;
+use crossterm::event::KeyModifiers;
+use ratatui::layout::Constraint;
+use ratatui::widgets::Paragraph;
+use ratatui::layout::Direction;
+use crossterm::event::KeyCode;
+use ratatui::widgets::Borders;
+use texera::UnsavedLinePlugin;
+use texera::LineNumberPlugin;
+use texera::WhitespacePlugin;
+use crossterm::event::Event;
+use ratatui::layout::Layout;
+use ratatui::widgets::Block;
+use texera::EditorViewState;
+use ratatui::style::Color;
+use ratatui::style::Style;
+use texera::DefaultKeymap;
+use texera::HistoryPlugin;
+use texera::EditorAction;
+use texera_core::TabSize;
+use texera::apply_action;
+use texera::EditorView;
+use texera_core::State;
+use crossterm::execute;
+use ratatui::Terminal;
+use crossterm::event;
+use texera::Keymap;
 
 #[derive(Clone, Copy)]
 struct TabStylePreset {

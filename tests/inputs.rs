@@ -1,31 +1,42 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::str::FromStr;
-use texera::{
-    apply_action, DefaultKeymap, EditorAction, HistoryPlugin, KeyCombination, Keymap,
-};
-use texera_core::{tr, AllowMultipleSelections, Selection, State};
+
+use texera_core::AllowMultipleSelections;
+use crossterm::event::KeyModifiers;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyCode;
+use texera::KeyCombination;
+use texera_core::Selection;
+use texera::DefaultKeymap;
+use texera::HistoryPlugin;
+use texera::EditorAction;
+use texera::apply_action;
+use texera_core::State;
+use texera_core::tr;
+use texera::Keymap;
 
 #[test]
-fn test_key_combination_from_str() {
-    let k1 = KeyCombination::from_str("ctrl-z").expect("parse ctrl-z");
+fn key_combination_from_str() -> Result<(), Box<dyn std::error::Error>> {
+    let k1 = KeyCombination::from_str("ctrl-z")?;
     assert_eq!(k1.code, KeyCode::Char('z'));
     assert_eq!(k1.modifiers, KeyModifiers::CONTROL);
 
-    let k2 = KeyCombination::from_str("ctrl-shift-z").expect("parse ctrl-shift-z");
+    let k2 = KeyCombination::from_str("ctrl-shift-z")?;
     assert_eq!(k2.code, KeyCode::Char('z'));
     assert_eq!(k2.modifiers, KeyModifiers::CONTROL | KeyModifiers::SHIFT);
 
-    let k3 = KeyCombination::from_str("alt-arrow_down").expect("parse alt-arrow_down");
+    let k3 = KeyCombination::from_str("alt-arrow_down")?;
     assert_eq!(k3.code, KeyCode::Down);
     assert_eq!(k3.modifiers, KeyModifiers::ALT);
 
-    let k4 = KeyCombination::from_str("backspace").expect("parse backspace");
+    let k4 = KeyCombination::from_str("backspace")?;
     assert_eq!(k4.code, KeyCode::Backspace);
     assert!(k4.modifiers.is_empty());
+
+    Ok(())
 }
 
 #[test]
-fn test_default_keymap_resolution() {
+fn default_keymap_resolution() {
     let keymap = DefaultKeymap::new();
 
     let ev_ctrl_z = KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL);
@@ -42,20 +53,22 @@ fn test_default_keymap_resolution() {
 }
 
 #[test]
-fn test_keymap_load_from_json() {
+fn keymap_load_from_json() -> Result<(), Box<dyn std::error::Error>> {
     let json = r#"{"ctrl-s": "select_all", "alt-x": "delete_forward", "ctrl-q": "undo"}"#;
 
-    let keymap = DefaultKeymap::from_json_str(json).expect("Keymap JSON should parse");
+    let keymap = DefaultKeymap::from_json_str(json)?;
 
     let ev_ctrl_s = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL);
     assert_eq!(keymap.action_for_key(&ev_ctrl_s), Some(EditorAction::SelectAll));
 
     let ev_alt_x = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT);
     assert_eq!(keymap.action_for_key(&ev_alt_x), Some(EditorAction::DeleteForward));
+
+    Ok(())
 }
 
 #[test]
-fn test_apply_action_typing_and_navigation() -> Result<(), Box<dyn std::error::Error>> {
+fn apply_action_typing_and_navigation() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("");
 
     // 1. Type "h", "i"
@@ -83,7 +96,7 @@ fn test_apply_action_typing_and_navigation() -> Result<(), Box<dyn std::error::E
 }
 
 #[test]
-fn test_apply_action_undo_redo_and_multicursor() -> Result<(), Box<dyn std::error::Error>> {
+fn apply_action_undo_redo_and_multicursor() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("line1\nline2")
         .with_extensions([HistoryPlugin::extension(None), AllowMultipleSelections(true).into()]);
 
@@ -133,13 +146,13 @@ fn test_apply_action_undo_redo_and_multicursor() -> Result<(), Box<dyn std::erro
 }
 
 #[test]
-fn test_bidirectional_cursor_add_and_contract() -> Result<(), Box<dyn std::error::Error>> {
+fn bidirectional_cursor_add_and_contract() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("line1\nline2\nline3\nline4")
         .with_extensions([AllowMultipleSelections(true).into()]);
 
     // Start at line 2 (offset 6)
     state = state.update(tr!({
-        selection: Selection::cursor(6)
+        selection: Selection::cursor(6),
     }))?.into_state();
     assert_eq!(state.selection().ranges_ref().len(), 1);
 
@@ -177,7 +190,7 @@ fn test_bidirectional_cursor_add_and_contract() -> Result<(), Box<dyn std::error
 }
 
 #[test]
-fn test_multicursor_upward_movement_and_top_line_edge_case() -> Result<(), Box<dyn std::error::Error>> {
+fn multicursor_upward_movement_and_top_line_edge_case() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("line1\nline2\nline3\nline4")
         .with_extensions([AllowMultipleSelections(true).into()]);
 
@@ -194,7 +207,7 @@ fn test_multicursor_upward_movement_and_top_line_edge_case() -> Result<(), Box<d
     // Test edge case 2: Adding cursors upwards and then moving cursors
     // Start cursor at line 3 (offset 12)
     state = state.update(tr!({
-        selection: Selection::cursor(12)
+        selection: Selection::cursor(12),
     }))?.into_state();
     assert_eq!(state.selection().main().head(), 12);
 

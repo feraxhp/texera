@@ -15,11 +15,19 @@
 
 //! History plugin wrapping undo and redo capabilities.
 
-use texera_core::{Extension, State, TransactionSpec};
-use texera_pluggins::{
-    history, redo_depth, redo_state, undo_depth, undo_state, HistoryConfig,
-};
-use crate::traits::{CommandHandler, ViewPlugin, ViewUpdate};
+use texera_pluggins::HistoryConfig;
+use texera_core::TransactionSpec;
+use texera_pluggins::redo_depth;
+use texera_pluggins::redo_state;
+use texera_pluggins::undo_depth;
+use texera_pluggins::undo_state;
+use texera_pluggins::history;
+use texera_core::Extension;
+use texera_core::State;
+
+use crate::traits::CommandHandler;
+use crate::traits::ViewPlugin;
+use crate::traits::ViewUpdate;
 
 /// Plugin wrapping history operations (undo/redo) from `texera-pluggins`.
 ///
@@ -135,7 +143,8 @@ impl HistoryPlugin {
     /// # Examples
     ///
     /// ```rust
-    /// use texera::{CommandHandler, HistoryPlugin};
+    /// use texera::CommandHandler;
+    /// use texera::HistoryPlugin;
     /// use texera_core::State;
     ///
     /// let mut state = State::from("test").with_extensions([HistoryPlugin::extension(None)]);

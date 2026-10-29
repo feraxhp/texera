@@ -16,11 +16,15 @@
 //! Unsaved lines tracking plugin powered by Myers diff.
 
 use std::collections::HashSet;
-use ratatui::style::{Color, Style};
+
+use ratatui::style::Color;
+use ratatui::style::Style;
 use ratatui::text::Span;
 use texera_core::State;
 
-use crate::traits::{GutterMarker, ViewPlugin, ViewUpdate};
+use crate::traits::GutterMarker;
+use crate::traits::ViewPlugin;
+use crate::traits::ViewUpdate;
 
 /// Plugin that tracks unsaved/modified lines and renders an indicator beside the gutter.
 ///
@@ -99,7 +103,8 @@ impl UnsavedLinePlugin {
     /// # Examples
     ///
     /// ```rust
-    /// use ratatui::style::{Color, Style};
+    /// use ratatui::style::Color;
+    /// use ratatui::style::Style;
     /// use texera::UnsavedLinePlugin;
     ///
     /// let plugin = UnsavedLinePlugin::new()

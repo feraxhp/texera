@@ -2,13 +2,24 @@
 
 mod common;
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+use std::sync::Mutex;
+use std::sync::Arc;
 
-use common::*;
+use common::MARKDOWN;
+use common::registry;
+use common::RUST;
+use common::has;
+use common::lex;
+use common::tok;
+
+use texera::HighlightPlugin;
 use ratatui::style::Color;
-use texera::{Highlight, HighlightPlugin, ThemeMap, SyntaxField};
+use texera::SyntaxField;
 use texera_core::State;
+use texera::Highlight;
+use texera::ThemeMap;
 
 const PYTHON: &str = r#"
 [meta]
@@ -38,7 +49,7 @@ const DOC: [&str; 8] = [
 ];
 
 #[test]
-fn test_markdown_with_embedded_rust_full_cycle() {
+fn markdown_with_embedded_rust_full_cycle() {
     let (reg, md) = md_with_rust();
     let out = lex(&reg, md, &DOC);
 
@@ -67,7 +78,7 @@ fn test_markdown_with_embedded_rust_full_cycle() {
 }
 
 #[test]
-fn test_embed_language_is_resolved_by_extension_and_case() {
+fn embed_language_is_resolved_by_extension_and_case() {
     let (reg, md) = md_with_rust();
     for fence in ["```rs", "```Rust", "```RUST"] {
         let out = lex(&reg, md, &[fence, "fn x() {}"]);
@@ -76,7 +87,7 @@ fn test_embed_language_is_resolved_by_extension_and_case() {
 }
 
 #[test]
-fn test_embed_end_token_and_fixed_embed_name() {
+fn embed_end_token_and_fixed_embed_name() {
     let host = r#"
 [states.root]
 rules = [
@@ -93,7 +104,7 @@ rules = [
 }
 
 #[test]
-fn test_fence_without_language_is_plain_text_until_the_closing_fence() {
+fn fence_without_language_is_plain_text_until_the_closing_fence() {
     let (reg, md) = md_with_rust();
     let out = lex(&reg, md, &["```", "fn let `x` # not a heading", "```", "# heading"]);
     assert_eq!(reg.describe(out[0].1, md), ["markdown::root", "<plain>"]);
@@ -103,7 +114,7 @@ fn test_fence_without_language_is_plain_text_until_the_closing_fence() {
 }
 
 #[test]
-fn test_the_host_delimiter_always_wins() {
+fn the_host_delimiter_always_wins() {
     // Documented limit of single pass lexers: whatever the embedded language has open (here an
     // unterminated block comment) the host's closing delimiter ends the block.
     let (reg, md) = md_with_rust();
@@ -116,7 +127,7 @@ fn test_the_host_delimiter_always_wins() {
 }
 
 #[test]
-fn test_nested_embeds_close_innermost_first() {
+fn nested_embeds_close_innermost_first() {
     let (reg, md) = md_with_rust();
     let out = lex(&reg, md, &["```markdown", "```rust", "fn f() {", "```", "# inner heading", "```", "# outer heading"]);
     assert_eq!(reg.describe(out[1].1, md), ["markdown::root", "markdown::root", "rust::root"]);
@@ -130,7 +141,7 @@ fn test_nested_embeds_close_innermost_first() {
 }
 
 #[test]
-fn test_embedded_root_frame_cannot_be_popped() {
+fn embedded_root_frame_cannot_be_popped() {
     let host = r#"
 [states.root]
 rules = [ { match = '^<<(\w+)', token = "open", embed = "$1", embed_end = '^>>$' } ]
@@ -156,7 +167,7 @@ rules = [ { match = '\}', token = "close", pop = true } ]
 }
 
 #[test]
-fn test_lazy_loader_is_called_once_per_language_and_cached() {
+fn lazy_loader_is_called_once_per_language_and_cached() {
     let calls = Arc::new(Mutex::new(Vec::<String>::new()));
     let log = calls.clone();
     let (reg, md) = registry(&[("markdown", MARKDOWN)]);
@@ -196,7 +207,7 @@ fn test_lazy_loader_is_called_once_per_language_and_cached() {
 }
 
 #[test]
-fn test_loader_returning_garbage_is_treated_as_unavailable() {
+fn loader_returning_garbage_is_treated_as_unavailable() {
     let (reg, md) = registry(&[("markdown", MARKDOWN)]);
     reg.set_loader(|_| Some("this is [not a valid language".to_string()));
     let out = lex(&reg, md, &["```whatever", "text", "```", "# h"]);
@@ -206,7 +217,7 @@ fn test_loader_returning_garbage_is_treated_as_unavailable() {
 }
 
 #[test]
-fn test_late_availability_requires_a_revision_bump_to_take_effect() {
+fn late_availability_requires_a_revision_bump_to_take_effect() {
     let available = Arc::new(AtomicUsize::new(0));
     let flag = available.clone();
     let (reg, md) = registry(&[("markdown", MARKDOWN)]);
@@ -227,14 +238,16 @@ fn test_late_availability_requires_a_revision_bump_to_take_effect() {
 }
 
 #[test]
-fn test_registering_a_language_returns_the_new_revision() {
+fn registering_a_language_returns_the_new_revision() -> Result<(), Box<dyn std::error::Error>> {
     let (reg, _) = md_with_rust();
     let before = reg.revision();
-    let registered = reg.register("rust", RUST).unwrap();
+    let registered = reg.register("rust", RUST)?;
     assert!(registered.revision > before);
     assert_eq!(registered.revision, reg.revision());
     // Overriding keeps the id so existing stacks stay meaningful.
     assert_eq!(Some(registered.lang_id), reg.lang_id("rust"));
+
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -267,7 +280,7 @@ fn fg_at(styled: &[(std::ops::Range<usize>, ratatui::style::Style)], col: usize)
 }
 
 #[test]
-fn test_embedded_tokens_are_colored_through_the_cached_state() {
+fn embedded_tokens_are_colored_through_the_cached_state() {
     let h = highlighter();
     let text = DOC.join("\n");
     let st = state(&text);
@@ -283,7 +296,7 @@ fn test_embedded_tokens_are_colored_through_the_cached_state() {
 }
 
 #[test]
-fn test_overriding_a_language_invalidates_the_cached_parse() {
+fn overriding_a_language_invalidates_the_cached_parse() {
     let h = highlighter();
     let text = DOC.join("\n");
     let st = state(&text);
@@ -313,16 +326,18 @@ fn test_overriding_a_language_invalidates_the_cached_parse() {
 }
 
 #[test]
-fn test_shared_registry_between_clones() {
+fn shared_registry_between_clones() -> Result<(), Box<dyn std::error::Error>> {
     let h = highlighter();
     let clone = h.clone();
     let before = h.rules_id().unwrap();
-    clone.register_language("rust", RUST_OVERRIDE).unwrap();
+    clone.register_language("rust", RUST_OVERRIDE)?;
     assert_ne!(h.rules_id().unwrap(), before, "clones share the registry");
+
+    Ok(())
 }
 
 #[test]
-fn test_lazy_language_through_the_highlighter_loader() {
+fn lazy_language_through_the_highlighter_loader() {
     let mut h = HighlightPlugin::new();
     h.global_theme.set_color("keyword", Color::Red);
     let h = h

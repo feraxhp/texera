@@ -16,7 +16,11 @@
 //! Whitespace visualization plugin for rendering spaces and tabs with custom glyphs.
 
 use ratatui::style::Style;
-use crate::traits::{GlyphContext, GlyphTransformer, TransformedGlyph, ViewPlugin};
+
+use crate::traits::GlyphTransformer;
+use crate::traits::TransformedGlyph;
+use crate::traits::GlyphContext;
+use crate::traits::ViewPlugin;
 
 /// Plugin that replaces whitespace characters (spaces and tabs) with customizable visual glyphs.
 ///
@@ -28,8 +32,10 @@ use crate::traits::{GlyphContext, GlyphTransformer, TransformedGlyph, ViewPlugin
 /// # Examples
 ///
 /// ```rust
-/// use ratatui::style::{Color, Style};
-/// use texera::{EditorView, WhitespacePlugin};
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
+/// use texera::WhitespacePlugin;
+/// use texera::EditorView;
 ///
 /// let plugin = WhitespacePlugin::default()
 ///     .with_style(Style::default().fg(Color::DarkGray));

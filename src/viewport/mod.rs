@@ -30,9 +30,13 @@ pub mod scroller;
 /// Visual line segmentation and coordinate transformations.
 pub mod visual_line;
 
+pub use visual_line::doc_offset_to_visual_pos;
+pub use visual_line::visual_pos_to_doc_offset;
+pub use visual_line::compute_visual_lines;
+pub use visual_line::wrap_single_line;
+pub use visual_line::VisualPosition;
+pub use visual_line::VisualLine;
+
 pub use metrics::CellMetrics;
+
 pub use scroller::Scroller;
-pub use visual_line::{
-    compute_visual_lines, doc_offset_to_visual_pos, visual_pos_to_doc_offset, wrap_single_line,
-    VisualLine, VisualPosition,
-};

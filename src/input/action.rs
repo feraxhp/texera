@@ -15,10 +15,13 @@
 
 //! High-level editor actions and key combinations.
 
-use std::fmt;
 use std::str::FromStr;
-use crossterm::event::{KeyCode, KeyModifiers};
-use serde::{Deserialize, Serialize};
+use std::fmt;
+
+use crossterm::event::KeyModifiers;
+use crossterm::event::KeyCode;
+use serde::Deserialize;
+use serde::Serialize;
 
 /// High-level editor actions mapped from keybindings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -79,9 +82,11 @@ pub enum EditorAction {
 /// # Examples
 ///
 /// ```rust
-/// use crossterm::event::{KeyCode, KeyModifiers};
-/// use texera::KeyCombination;
 /// use std::str::FromStr;
+///
+/// use crossterm::event::KeyModifiers;
+/// use crossterm::event::KeyCode;
+/// use texera::KeyCombination;
 ///
 /// // Create directly
 /// let combo = KeyCombination::new(KeyCode::Char('s'), KeyModifiers::CONTROL);
@@ -106,7 +111,8 @@ impl KeyCombination {
     /// # Examples
     ///
     /// ```rust
-    /// use crossterm::event::{KeyCode, KeyModifiers};
+    /// use crossterm::event::KeyModifiers;
+    /// use crossterm::event::KeyCode;
     /// use texera::KeyCombination;
     ///
     /// let combo = KeyCombination::new(KeyCode::Enter, KeyModifiers::CONTROL);

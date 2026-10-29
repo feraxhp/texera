@@ -29,6 +29,11 @@ pub mod render;
 /// View state preserving scroll offsets across frames.
 pub mod view_state;
 
-pub use editor_view::{BoundEditorView, EditorView, EditorWidget};
-pub use render::{render_editor, EditorThemeStyles};
+pub use editor_view::BoundEditorView;
+pub use editor_view::EditorWidget;
+pub use editor_view::EditorView;
+
+pub use render::EditorThemeStyles;
+pub use render::render_editor;
+
 pub use view_state::EditorViewState;

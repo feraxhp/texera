@@ -14,8 +14,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.\n\n//! Stateful editor view context preserved across render frames.
 
 use ratatui::layout::Rect;
-use crate::viewport::scroller::Scroller;
+
 use crate::viewport::visual_line::VisualPosition;
+use crate::viewport::scroller::Scroller;
 
 /// Mutable state of the editor view persisted across render frames.
 ///
@@ -122,7 +123,8 @@ impl EditorViewState {
     /// # Examples
     ///
     /// ```rust
-    /// use texera::{EditorViewState, VisualPosition};
+    /// use texera::VisualPosition;
+    /// use texera::EditorViewState;
     ///
     /// let mut view_state = EditorViewState::new();
     /// view_state.ensure_cursor_visible(VisualPosition { visual_row: 25, visual_col: 5 }, false);

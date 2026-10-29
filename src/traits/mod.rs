@@ -24,16 +24,21 @@
 //! - [`CommandHandler`]: Abstraction for dispatching edit commands and transactions.
 
 use std::ops::Range;
+
+use texera_core::TransactionSpec;
 use ratatui::style::Style;
-use ratatui::text::{Line, Span};
-use texera_core::{RangeSet, State, TransactionSpec};
+use texera_core::RangeSet;
+use ratatui::text::Line;
+use ratatui::text::Span;
+use texera_core::State;
 
 /// Context passed to view plugins when transactions are applied or the view updates.
 ///
 /// # Examples
 ///
 /// ```rust
-/// use texera::{ViewPlugin, ViewUpdate};
+/// use texera::ViewPlugin;
+/// use texera::ViewUpdate;
 ///
 /// struct MyPlugin;
 ///
@@ -70,7 +75,8 @@ pub trait ViewPlugin: Send + Sync {
 /// # Examples
 ///
 /// ```rust
-/// use ratatui::style::{Color, Style};
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
 /// use ratatui::text::Span;
 /// use texera::GutterMarker;
 ///
@@ -98,8 +104,10 @@ pub trait GutterMarker: Send + Sync {
 /// # Examples
 ///
 /// ```rust
-/// use ratatui::text::{Line, Span};
-/// use texera::{Gutter, ViewPlugin};
+/// use ratatui::text::Line;
+/// use ratatui::text::Span;
+/// use texera::ViewPlugin;
+/// use texera::Gutter;
 ///
 /// struct SimpleGutter;
 ///
@@ -131,8 +139,11 @@ pub trait Gutter: ViewPlugin {
 ///
 /// ```rust
 /// use std::ops::Range;
-/// use ratatui::style::{Color, Style};
-/// use texera::{Highlight, ViewPlugin};
+///
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
+/// use texera::ViewPlugin;
+/// use texera::Highlight;
 ///
 /// struct SimpleKeywordHighlighter;
 ///
@@ -180,7 +191,9 @@ pub trait Highlight: ViewPlugin {
 /// # Examples
 ///
 /// ```rust
-/// use ratatui::style::{Color, Modifier, Style};
+/// use ratatui::style::Modifier;
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
 /// use texera::Decoration;
 ///
 /// let inline_mark = Decoration::Mark(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
@@ -212,9 +225,15 @@ impl texera_core::RangeValue for Decoration {
 ///
 /// ```rust
 /// use std::ops::Range;
-/// use ratatui::style::{Color, Style};
-/// use texera::{Decoration, DecorationProvider, ViewPlugin};
-/// use texera_core::{RangeSet, RangeSetBuilder, State};
+///
+/// use texera_core::RangeSetBuilder;
+/// use texera::DecorationProvider;
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
+/// use texera_core::RangeSet;
+/// use texera::Decoration;
+/// use texera::ViewPlugin;
+/// use texera_core::State;
 ///
 /// struct UnderlineProvider;
 ///
@@ -238,8 +257,10 @@ pub trait DecorationProvider: ViewPlugin {
 /// # Examples
 ///
 /// ```rust
+/// use texera_core::TransactionSpec;
 /// use texera::CommandHandler;
-/// use texera_core::{tr, State, TransactionSpec};
+/// use texera_core::State;
+/// use texera_core::tr;
 ///
 /// struct EditorController {
 ///     state: State,
@@ -310,8 +331,11 @@ pub enum TransformedGlyph {
 /// # Examples
 ///
 /// ```rust
+/// use texera::GlyphTransformer;
+/// use texera::TransformedGlyph;
+/// use texera::GlyphContext;
 /// use ratatui::style::Style;
-/// use texera::{GlyphContext, GlyphTransformer, TransformedGlyph, ViewPlugin};
+/// use texera::ViewPlugin;
 ///
 /// struct SpaceDotTransformer;
 ///

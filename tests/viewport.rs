@@ -1,11 +1,13 @@
-use texera::{
-    compute_visual_lines, doc_offset_to_visual_pos, visual_pos_to_doc_offset, CellMetrics,
-    Scroller, VisualPosition,
-};
+use texera::visual_pos_to_doc_offset;
+use texera::doc_offset_to_visual_pos;
+use texera::compute_visual_lines;
+use texera::VisualPosition;
+use texera::CellMetrics;
 use texera_core::Text;
+use texera::Scroller;
 
 #[test]
-fn test_cell_metrics_ascii_and_wide_chars() {
+fn cell_metrics_ascii_and_wide_chars() {
     // Normal ASCII
     assert_eq!(CellMetrics::char_width('a', 0, 4), 1);
     assert_eq!(CellMetrics::string_width("hello", 0, 4), 5);
@@ -22,7 +24,7 @@ fn test_cell_metrics_ascii_and_wide_chars() {
 }
 
 #[test]
-fn test_visual_lines_without_wrap() {
+fn visual_lines_without_wrap() {
     let doc = Text::from("line one\nline two is longer\n3");
     let visual = compute_visual_lines(&doc, false, 80, 4);
 
@@ -34,7 +36,7 @@ fn test_visual_lines_without_wrap() {
 }
 
 #[test]
-fn test_visual_lines_with_soft_wrap() {
+fn visual_lines_with_soft_wrap() {
     let doc = Text::from("the quick brown fox jumps over the lazy dog");
     // Wrap at 15 columns
     let visual = compute_visual_lines(&doc, true, 15, 4);
@@ -56,7 +58,7 @@ fn test_visual_lines_with_soft_wrap() {
 }
 
 #[test]
-fn test_offset_and_visual_pos_bidirectional_mapping() {
+fn offset_and_visual_pos_bidirectional_mapping() {
     let doc = Text::from("hello\nworld");
     let visual = compute_visual_lines(&doc, false, 80, 4);
 
@@ -72,7 +74,7 @@ fn test_offset_and_visual_pos_bidirectional_mapping() {
 }
 
 #[test]
-fn test_scroller_autoscroll_vertical_and_horizontal() {
+fn scroller_autoscroll_vertical_and_horizontal() {
     let mut scroller = Scroller::new(10, 20);
     scroller.margin_vertical = 1;
     scroller.margin_horizontal = 2;
@@ -97,7 +99,7 @@ fn test_scroller_autoscroll_vertical_and_horizontal() {
 }
 
 #[test]
-fn test_scroller_max_lines_restriction() {
+fn scroller_max_lines_restriction() {
     let mut scroller = Scroller::new(50, 80);
     // User configured widget max lines = 10
     scroller.update_dimensions(50, 80, Some(10));
@@ -106,7 +108,7 @@ fn test_scroller_max_lines_restriction() {
 }
 
 #[test]
-fn test_horizontal_slice() {
+fn horizontal_slice() {
     let scroller = Scroller {
         scroll_x: 6,
         visible_columns: 5,

@@ -1,14 +1,24 @@
-use texera::{EditorView, EditorViewState};
+use texera::EditorViewState;
+use texera::EditorView;
 
 #[cfg(feature = "highlight")]
 use ratatui::style::Color;
 #[cfg(feature = "highlight")]
-use texera::{HighlightPlugin, HistoryPlugin, LineNumberPlugin, ThemeMap, UnsavedLinePlugin};
+use texera::UnsavedLinePlugin;
+#[cfg(feature = "highlight")]
+use texera::LineNumberPlugin;
+#[cfg(feature = "highlight")]
+use texera::HighlightPlugin;
+#[cfg(feature = "highlight")]
+use texera::HistoryPlugin;
+#[cfg(feature = "highlight")]
+use texera::ThemeMap;
 
 #[test]
-fn test_editor_view_builder_minimal() {
+fn editor_view_builder_minimal() {
     let view = EditorView::new();
     let state = EditorViewState::new();
+
     assert_eq!(state.scroll_x(), 0);
     assert_eq!(state.scroll_y(), 0);
     assert!(state.last_area.is_none());
@@ -17,7 +27,7 @@ fn test_editor_view_builder_minimal() {
 
 #[cfg(feature = "highlight")]
 #[test]
-fn test_editor_view_builder_with_plugins() {
+fn editor_view_builder_with_plugins() {
     let mut unsaved = UnsavedLinePlugin::new();
     unsaved.mark_line_dirty(3);
     assert!(unsaved.is_line_dirty(3));
@@ -38,16 +48,19 @@ fn test_editor_view_builder_with_plugins() {
 
 #[cfg(feature = "highlight")]
 #[test]
-fn test_spec_theme_json_parsing() {
+fn spec_theme_json_parsing() -> Result<(), Box<dyn std::error::Error>> {
     let json = r##"{
         "string": "green",
         "keyword": "#f6c99f",
         "number": "magenta"
     }"##;
 
-    let theme = ThemeMap::from_json_str(json).expect("Theme JSON should parse");
+    let theme = ThemeMap::from_json_str(json)?;
+
     assert_eq!(theme.color_for("string"), Some(Color::Green));
     assert_eq!(theme.color_for("number"), Some(Color::Magenta));
     assert_eq!(theme.color_for("keyword"), Some(Color::Rgb(246, 201, 159)));
     assert_eq!(theme.color_for("non_existent"), None);
+
+    Ok(())
 }

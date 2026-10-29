@@ -23,10 +23,15 @@
 //! - [`apply_action`]: Helper function to apply an action directly to a document [`texera_core::State`].
 
 pub mod action;
+pub mod apply;
 pub mod keymap;
 
-pub use action::{EditorAction, KeyCombination};
-pub use keymap::{apply_action, DefaultKeymap, Keymap};
+pub use action::KeyCombination;
+pub use action::EditorAction;
+
+pub use keymap::DefaultKeymap;
+pub use apply::apply_action;
+pub use keymap::Keymap;
 
 /// Convenience macro to load and parse a keymap JSON file embedded at compile-time.
 ///

@@ -13,23 +13,31 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use ratatui::style::Modifier;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::Color;
+use ratatui::style::Style;
 use texera_core::State;
 
-use crate::traits::{Decoration, GlyphContext, TransformedGlyph};
-use crate::view::editor_view::EditorView;
+use crate::viewport::visual_line::doc_offset_to_visual_pos;
+use crate::viewport::visual_line::compute_visual_lines;
+use crate::viewport::visual_line::VisualPosition;
 use crate::view::view_state::EditorViewState;
+use crate::viewport::visual_line::VisualLine;
 use crate::viewport::metrics::CellMetrics;
-use crate::viewport::visual_line::{compute_visual_lines, doc_offset_to_visual_pos, VisualLine, VisualPosition};
+use crate::view::editor_view::EditorView;
+use crate::traits::TransformedGlyph;
+use crate::traits::GlyphContext;
+use crate::traits::Decoration;
 
 /// Style definitions for primary and secondary cursors and text selection.
 ///
 /// # Examples
 ///
 /// ```rust
-/// use ratatui::style::{Color, Style};
+/// use ratatui::style::Color;
+/// use ratatui::style::Style;
 /// use texera::EditorThemeStyles;
 ///
 /// let theme = EditorThemeStyles {
@@ -90,7 +98,9 @@ impl LineHighlights {
 /// ```rust
 /// use ratatui::buffer::Buffer;
 /// use ratatui::layout::Rect;
-/// use texera::{render_editor, EditorView, EditorViewState};
+/// use texera::EditorViewState;
+/// use texera::render_editor;
+/// use texera::EditorView;
 /// use texera_core::State;
 ///
 /// let view = EditorView::new();

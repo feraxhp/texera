@@ -16,15 +16,17 @@
 //! Viewport scrolling and cursor tracking logic.
 
 use std::ops::Range;
-use crate::viewport::metrics::CellMetrics;
+
 use crate::viewport::visual_line::VisualPosition;
+use crate::viewport::metrics::CellMetrics;
 
 /// Viewport scrolling controller managing visible bounds and cursor tracking.
 ///
 /// # Examples
 ///
 /// ```rust
-/// use texera::{Scroller, VisualPosition};
+/// use texera::VisualPosition;
+/// use texera::Scroller;
 ///
 /// let mut scroller = Scroller::new(24, 80);
 /// scroller.ensure_visible(VisualPosition { visual_row: 30, visual_col: 10 }, false);
@@ -108,7 +110,8 @@ impl Scroller {
     /// # Examples
     ///
     /// ```rust
-    /// use texera::{Scroller, VisualPosition};
+    /// use texera::VisualPosition;
+    /// use texera::Scroller;
     ///
     /// let mut scroller = Scroller::new(10, 40);
     /// scroller.ensure_visible(VisualPosition { visual_row: 15, visual_col: 5 }, false);

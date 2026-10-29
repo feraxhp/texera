@@ -2,18 +2,31 @@
 
 mod common;
 
-use common::*;
+use common::with_timeout;
+use common::MARKDOWN;
+use common::registry;
+use common::tokens;
+use common::JSON;
+use common::RUST;
+use common::Rng;
+use common::lex;
+use common::tok;
+
+use texera::LanguageRegistry;
+use texera::HighlightPlugin;
+use texera::MAX_POOL_STATES;
 use ratatui::style::Color;
-use texera::{
-    Highlight, LanguageRegistry, LexState, MAX_DEPTH, MAX_POOL_STATES, HighlightPlugin, ThemeMap,
-};
+use texera::Highlight;
+use texera::MAX_DEPTH;
+use texera::LexState;
+use texera::ThemeMap;
 
 // ---------------------------------------------------------------------------------------------
 // Zero byte matches
 // ---------------------------------------------------------------------------------------------
 
 #[test]
-fn test_zero_width_matches_never_freeze_the_lexer() {
+fn zero_width_matches_never_freeze_the_lexer() {
     let cases = [
         ("star", r#"[states.root]
 rules = [ { match = '.*', token = "all" } ]"#),
@@ -43,7 +56,7 @@ rules = [ { match = '(?:)', token = "nothing" } ]"#),
 }
 
 #[test]
-fn test_zero_width_rules_are_reported_as_warnings() {
+fn zero_width_rules_are_reported_as_warnings() {
     let reg = LanguageRegistry::new();
     let id = reg
         .register("t", "[states.root]\nrules = [ { match = '[0-9]*', token = \"n\" }, { match = 'a', token = \"a\" } ]")
@@ -63,7 +76,7 @@ fn test_zero_width_rules_are_reported_as_warnings() {
 }
 
 #[test]
-fn test_zero_width_transition_cycles_are_bounded() {
+fn zero_width_transition_cycles_are_bounded() {
     // A -> B -> A without consuming a single byte, forever.
     let ping_pong = r#"[states.root]
 rules = [ { match = '(?:)', set = "b" } ]
@@ -86,7 +99,7 @@ rules = [ { match = '(?:)', push = "root" } ]
 }
 
 #[test]
-fn test_zero_width_lookahead_transition_is_legal() {
+fn zero_width_lookahead_transition_is_legal() {
     // Leave a state *before* the delimiter, without consuming it.
     let src = r#"[states.root]
 rules = [
@@ -121,7 +134,7 @@ rules = [
 "#;
 
 #[test]
-fn test_excess_pops_never_empty_the_stack() {
+fn excess_pops_never_empty_the_stack() {
     let (reg, lang) = registry(&[("t", BRACKETS)]);
     let out = lex(&reg, lang, &["}}}}}}}}}})]]", "}", "{}}}"]);
     for (toks, state) in &out {
@@ -134,7 +147,7 @@ fn test_excess_pops_never_empty_the_stack() {
 }
 
 #[test]
-fn test_excess_pops_with_the_json_grammar() {
+fn excess_pops_with_the_json_grammar() {
     let (reg, lang) = registry(&[("json", JSON)]);
     // `}` and `]` outside of any container are just untagged text there.
     let out = lex(&reg, lang, &["}}}}}}}}}})]]", "{\"a\": 1}}}}", "\"still a string\""]);
@@ -143,7 +156,7 @@ fn test_excess_pops_with_the_json_grammar() {
 }
 
 #[test]
-fn test_extreme_nesting_is_capped_and_memory_stays_flat() {
+fn extreme_nesting_is_capped_and_memory_stays_flat() {
     let (reg, lang) = registry(&[("t", BRACKETS)]);
     let line = "{".repeat(10_000);
     let mut state = LexState::BASE;
@@ -168,7 +181,7 @@ fn test_extreme_nesting_is_capped_and_memory_stays_flat() {
 }
 
 #[test]
-fn test_extreme_nesting_in_json_arrays() {
+fn extreme_nesting_in_json_arrays() {
     let (reg, lang) = registry(&[("json", JSON)]);
     let mut state = LexState::BASE;
     reg.tokenize_line_stateful(lang, &"[".repeat(10_000), &mut state);
@@ -176,7 +189,7 @@ fn test_extreme_nesting_in_json_arrays() {
 }
 
 #[test]
-fn test_state_pool_is_flushed_when_full_and_the_revision_changes() {
+fn state_pool_is_flushed_when_full_and_the_revision_changes() {
     // Two push targets: every 17-long sequence of `a` / `b` produces a distinct stack.
     let src = r#"[states.root]
 rules = [
@@ -212,7 +225,7 @@ rules = []
 }
 
 #[test]
-fn test_cache_is_rebuilt_when_the_pool_is_flushed_while_parsing() {
+fn cache_is_rebuilt_when_the_pool_is_flushed_while_parsing() {
     use texera::SyntaxField;
     use texera_core::State;
 
@@ -248,7 +261,7 @@ include = ["root"]
 // ---------------------------------------------------------------------------------------------
 
 #[test]
-fn test_multibyte_text_never_splits_a_codepoint() {
+fn multibyte_text_never_splits_a_codepoint() {
     let (reg, lang) = registry(&[("rust", RUST), ("json", JSON), ("markdown", MARKDOWN)]);
     let lines = [
         "fn f() {",
@@ -269,7 +282,7 @@ fn test_multibyte_text_never_splits_a_codepoint() {
 }
 
 #[test]
-fn test_styled_tokens_use_char_indices_not_byte_offsets() {
+fn styled_tokens_use_char_indices_not_byte_offsets() {
     let src = r#"[states.root]
 rules = [
     { match = '"', token = "string", push = "s" },
@@ -302,7 +315,7 @@ rules = [ { match = '"', token = "string", pop = true } ]
 // ---------------------------------------------------------------------------------------------
 
 #[test]
-fn test_random_garbage_never_panics_and_always_terminates() {
+fn random_garbage_never_panics_and_always_terminates() {
     let (reg, _) = registry(&[("rust", RUST), ("json", JSON), ("markdown", MARKDOWN)]);
     let reg = std::sync::Arc::new(reg);
     let pieces = [
@@ -333,7 +346,7 @@ fn test_random_garbage_never_panics_and_always_terminates() {
 }
 
 #[test]
-fn test_tokenizer_and_scanner_agree_on_garbage() {
+fn tokenizer_and_scanner_agree_on_garbage() {
     let (reg, lang) = registry(&[("markdown", MARKDOWN), ("rust", RUST)]);
     let pieces = ["```rust", "```", "fn f() {", "}", "/*", "*/", "\"", "x", "\n"];
     let mut rng = Rng(42);
@@ -348,7 +361,7 @@ fn test_tokenizer_and_scanner_agree_on_garbage() {
 }
 
 #[test]
-fn test_very_long_lines_are_lexed_in_linear_time() {
+fn very_long_lines_are_lexed_in_linear_time() {
     let (reg, lang) = registry(&[("rust", RUST)]);
     with_timeout(60, move || {
         let line = format!("fn f() {{ {} }}", "let a = foo(1, \"s\"); ".repeat(20_000));
@@ -359,7 +372,7 @@ fn test_very_long_lines_are_lexed_in_linear_time() {
 }
 
 #[test]
-fn test_missing_language_yields_no_tokens() {
+fn missing_language_yields_no_tokens() {
     let reg = LanguageRegistry::new();
     assert!(reg.tokenize_line(0, "anything").is_empty());
     assert!(reg.scan_line(7, "anything", LexState(123)).is_base());
@@ -367,7 +380,7 @@ fn test_missing_language_yields_no_tokens() {
 }
 
 #[test]
-fn test_dangling_lex_state_falls_back_to_the_base_stack() {
+fn dangling_lex_state_falls_back_to_the_base_stack() {
     let (reg, lang) = registry(&[("rust", RUST)]);
     let bogus = LexState(987_654);
     let toks = reg.tokenize_line_stateful(lang, "fn f() {}", &mut bogus.clone());
@@ -376,7 +389,7 @@ fn test_dangling_lex_state_falls_back_to_the_base_stack() {
 }
 
 #[test]
-fn test_broken_language_in_with_language_is_reported_not_fatal() {
+fn broken_language_in_with_language_is_reported_not_fatal() {
     let h = HighlightPlugin::new().with_language("bad", "[states.root]\nrules = [ { match = '(' } ]", None);
     assert_eq!(h.errors.len(), 1);
     assert!(h.errors[0].starts_with("bad:"));

@@ -2,11 +2,13 @@
 
 //! Helpers shared by the syntax engine tests.
 
+use std::time::Duration;
 use std::ops::Range;
 use std::sync::mpsc;
-use std::time::Duration;
 
-use texera::{LangId, LanguageRegistry, LexState};
+use texera::LanguageRegistry;
+use texera::LexState;
+use texera::LangId;
 
 pub const JSON: &str = include_str!("../../syntaxes/json.toml");
 pub const RUST: &str = include_str!("../../syntaxes/rust.toml");

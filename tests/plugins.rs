@@ -1,15 +1,20 @@
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
 use ratatui::widgets::StatefulWidget;
-use texera::{
-    CommandHandler, CustomDecorationPlugin, EditorView, EditorViewState, HistoryPlugin,
-    LineNumberPlugin, UnsavedLinePlugin,
-};
-use texera_core::{tr, State};
+use texera::CustomDecorationPlugin;
+use texera::UnsavedLinePlugin;
+use texera::LineNumberPlugin;
+use ratatui::buffer::Buffer;
+use texera::EditorViewState;
+use texera::CommandHandler;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
+use ratatui::style::Style;
+use texera::HistoryPlugin;
+use texera::EditorView;
+use texera_core::State;
+use texera_core::tr;
 
 #[test]
-fn test_unsaved_lines_indicator_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
+fn unsaved_lines_indicator_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("line 1\nline 2\nline 3");
     let mut unsaved = UnsavedLinePlugin::new();
 
@@ -39,7 +44,7 @@ fn test_unsaved_lines_indicator_lifecycle() -> Result<(), Box<dyn std::error::Er
 }
 
 #[test]
-fn test_unsaved_lines_newline_insertion_marks_only_new_line_dirty() -> Result<(), Box<dyn std::error::Error>> {
+fn unsaved_lines_newline_insertion_marks_only_new_line_dirty() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("alpha\nbeta\ngamma");
     let mut unsaved = UnsavedLinePlugin::new();
     unsaved.mark_as_saved(&state);
@@ -78,7 +83,7 @@ fn test_unsaved_lines_newline_insertion_marks_only_new_line_dirty() -> Result<()
 }
 
 #[test]
-fn test_render_unsaved_lines_in_yellow_beside_gutter() -> Result<(), Box<dyn std::error::Error>> {
+fn render_unsaved_lines_in_yellow_beside_gutter() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("alpha\nbeta\ngamma");
     let mut unsaved = UnsavedLinePlugin::new();
     unsaved.mark_as_saved(&state);
@@ -116,7 +121,7 @@ fn test_render_unsaved_lines_in_yellow_beside_gutter() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn test_history_plugin_undo_and_redo() -> Result<(), Box<dyn std::error::Error>> {
+fn history_plugin_undo_and_redo() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("hello")
         .with_extensions(HistoryPlugin::extension(None));
 
@@ -148,7 +153,7 @@ fn test_history_plugin_undo_and_redo() -> Result<(), Box<dyn std::error::Error>>
 }
 
 #[test]
-fn test_history_commander_dispatch() -> Result<(), Box<dyn std::error::Error>> {
+fn history_commander_dispatch() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::from("abc")
         .with_extensions(HistoryPlugin::extension(None));
 
@@ -173,7 +178,7 @@ fn test_history_commander_dispatch() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_custom_decoration_plugin_render() {
+fn custom_decoration_plugin_render() {
     let state = State::from("critical warning text");
 
     // Decorate "warning" (from 9 to 16) with Yellow foreground
@@ -204,7 +209,7 @@ fn test_custom_decoration_plugin_render() {
 
 #[cfg(feature = "whitespace")]
 #[test]
-fn test_whitespace_plugin_default_and_custom() {
+fn whitespace_plugin_default_and_custom() {
     use texera::WhitespacePlugin;
 
     // 1. Verify Default settings
