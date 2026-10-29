@@ -266,3 +266,70 @@ pub trait CommandHandler {
     /// Dispatches and applies a transactional update specification to the state.
     fn dispatch_transaction(&mut self, spec: TransactionSpec) -> Result<(), mynox::Error>;
 }
+
+
+/// Context passed to a [`GlyphTransformer`] to evaluate character rendering.
+#[derive(Debug, Clone)]
+pub struct GlyphContext<'a> {
+    /// Character to be evaluated ('\t', ' ', etc.).
+    pub ch: char,
+    /// Width in terminal columns occupied by this glyph in layout.
+    pub cell_width: usize,
+    /// Visual column where the glyph starts (0-indexed).
+    pub visual_col: usize,
+    /// Absolute document character offset.
+    pub doc_char_offset: usize,
+    /// Logical line index (0-indexed).
+    pub line_index: usize,
+    /// Style resolved up to this point (base, syntax, and decorations).
+    pub current_style: Style,
+    /// Reference to the immutable document state.
+    pub state: &'a State,
+}
+
+/// Visual replacement produced by a [`GlyphTransformer`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransformedGlyph {
+    /// Single-character replacement with an optional style patch.
+    Char(char, Option<Style>),
+    /// Multi-cell replacement for tabs.
+    ///
+    /// Non-terminal cells use `filler`, and the final cell uses `terminator`.
+    /// When `cell_width == 1`, only `terminator` is rendered.
+    Tab {
+        filler: char,
+        terminator: char,
+        style: Option<Style>,
+    },
+    /// Custom per-cell character sequence with an optional style patch.
+    Cells(Vec<char>, Option<Style>),
+}
+
+/// Plugin trait for intercepting and transforming character glyphs and styles before rendering.
+///
+/// # Examples
+///
+/// ```rust
+/// use ratatui::style::Style;
+/// use texera::{GlyphContext, GlyphTransformer, TransformedGlyph, ViewPlugin};
+///
+/// struct SpaceDotTransformer;
+///
+/// impl ViewPlugin for SpaceDotTransformer {}
+///
+/// impl GlyphTransformer for SpaceDotTransformer {
+///     fn transform(&self, ctx: &GlyphContext) -> Option<TransformedGlyph> {
+///         if ctx.ch == ' ' {
+///             Some(TransformedGlyph::Char('·', None))
+///         } else {
+///             None
+///         }
+///     }
+/// }
+/// ```
+pub trait GlyphTransformer: ViewPlugin {
+    /// Evaluate whether the character at the given context should be visually replaced.
+    ///
+    /// Return `None` to retain default rendering.
+    fn transform(&self, ctx: &GlyphContext) -> Option<TransformedGlyph>;
+}

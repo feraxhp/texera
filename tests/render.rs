@@ -1,9 +1,12 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::StatefulWidget;
-use texera::{EditorView, EditorViewState, LineNumberPlugin};
-use texera_core::{AllowMultipleSelections, Selection, State};
+use texera::{
+    EditorView, EditorViewState, GlyphContext, GlyphTransformer, LineNumberPlugin,
+    TransformedGlyph, ViewPlugin,
+};
+use texera_core::{AllowMultipleSelections, Selection, State, TabSize};
 
 #[test]
 fn test_render_minimal_without_gutter() {
@@ -114,4 +117,323 @@ fn test_render_soft_wrapping() {
     assert_eq!(buf[(0, 0)].symbol(), "w");
     // Row 1 should contain "word3 word4" wrapped softly
     assert_eq!(buf[(0, 1)].symbol(), "w");
+}
+
+
+// Helper transformers for rendering tests
+
+#[derive(Clone)]
+struct SpaceToDotTransformer;
+
+impl ViewPlugin for SpaceToDotTransformer {}
+
+impl GlyphTransformer for SpaceToDotTransformer {
+    fn transform(&self, ctx: &GlyphContext) -> Option<TransformedGlyph> {
+        if ctx.ch == ' ' {
+            Some(TransformedGlyph::Char('·', None))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone)]
+struct TabArrowTransformer;
+
+impl ViewPlugin for TabArrowTransformer {}
+
+impl GlyphTransformer for TabArrowTransformer {
+    fn transform(&self, ctx: &GlyphContext) -> Option<TransformedGlyph> {
+        if ctx.ch == '\t' {
+            Some(TransformedGlyph::Tab {
+                filler: '─',
+                terminator: '→',
+                style: None,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone)]
+struct StyledSpaceTransformer(Color);
+
+impl ViewPlugin for StyledSpaceTransformer {}
+
+impl GlyphTransformer for StyledSpaceTransformer {
+    fn transform(&self, ctx: &GlyphContext) -> Option<TransformedGlyph> {
+        if ctx.ch == ' ' {
+            Some(TransformedGlyph::Char('·', Some(Style::default().fg(self.0))))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone)]
+struct CellsTabTransformer;
+
+impl ViewPlugin for CellsTabTransformer {}
+
+impl GlyphTransformer for CellsTabTransformer {
+    fn transform(&self, ctx: &GlyphContext) -> Option<TransformedGlyph> {
+        if ctx.ch == '\t' {
+            Some(TransformedGlyph::Cells(vec!['<', '-', '-', '>'], None))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone)]
+struct FacetCheckingTransformer;
+
+impl ViewPlugin for FacetCheckingTransformer {}
+
+impl GlyphTransformer for FacetCheckingTransformer {
+    fn transform(&self, ctx: &GlyphContext) -> Option<TransformedGlyph> {
+        if ctx.ch == '\t' {
+            assert_eq!(ctx.state.tab_size(), 2);
+            assert_eq!(ctx.cell_width, 2);
+            Some(TransformedGlyph::Tab {
+                filler: '─',
+                terminator: '→',
+                style: None,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[test]
+fn test_glyph_transformer_space_to_dot() {
+    let state = State::from("hello world");
+    let view = EditorView::new().with_glyph_transformer(SpaceToDotTransformer);
+
+    let area = Rect::new(0, 0, 20, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(5, 0)].symbol(), "·");
+    assert_eq!(buf[(0, 0)].symbol(), "h");
+    assert_eq!(buf[(6, 0)].symbol(), "w");
+}
+
+#[test]
+fn test_glyph_transformer_tab_with_arrow() {
+    let state = State::from("\tfoo");
+    let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
+
+    let area = Rect::new(0, 0, 20, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(0, 0)].symbol(), "─");
+    assert_eq!(buf[(1, 0)].symbol(), "─");
+    assert_eq!(buf[(2, 0)].symbol(), "─");
+    assert_eq!(buf[(3, 0)].symbol(), "→");
+    assert_eq!(buf[(4, 0)].symbol(), "f");
+}
+
+#[test]
+fn test_glyph_transformer_tab_width_one() {
+    let state = State::from("abc\t");
+    let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
+
+    let area = Rect::new(0, 0, 20, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(0, 0)].symbol(), "a");
+    assert_eq!(buf[(1, 0)].symbol(), "b");
+    assert_eq!(buf[(2, 0)].symbol(), "c");
+    assert_eq!(buf[(3, 0)].symbol(), "→");
+}
+
+#[test]
+fn test_glyph_transformer_tab_width_two() {
+    let state = State::from("ab\t");
+    let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
+
+    let area = Rect::new(0, 0, 20, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(0, 0)].symbol(), "a");
+    assert_eq!(buf[(1, 0)].symbol(), "b");
+    assert_eq!(buf[(2, 0)].symbol(), "─");
+    assert_eq!(buf[(3, 0)].symbol(), "→");
+}
+
+#[test]
+fn test_glyph_transformer_tab_width_three() {
+    let state = State::from("a\t");
+    let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
+
+    let area = Rect::new(0, 0, 20, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(0, 0)].symbol(), "a");
+    assert_eq!(buf[(1, 0)].symbol(), "─");
+    assert_eq!(buf[(2, 0)].symbol(), "─");
+    assert_eq!(buf[(3, 0)].symbol(), "→");
+}
+
+#[test]
+fn test_glyph_transformer_custom_style() {
+    let state = State::from("a b");
+    let view = EditorView::new().with_glyph_transformer(StyledSpaceTransformer(Color::Cyan));
+
+    let area = Rect::new(0, 0, 10, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(1, 0)].symbol(), "·");
+    assert_eq!(buf[(1, 0)].style().fg, Some(Color::Cyan));
+}
+
+#[test]
+fn test_glyph_transformer_preserves_selection_background() {
+    let selection = Selection::from([Selection::range(0, 3)]);
+    let state = State::with_selection("a b", selection);
+    let view = EditorView::new().with_glyph_transformer(SpaceToDotTransformer);
+
+    let area = Rect::new(0, 0, 10, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(1, 0)].symbol(), "·");
+    assert_eq!(buf[(1, 0)].style().bg, Some(Color::DarkGray));
+}
+
+#[test]
+fn test_glyph_transformer_preserves_cursor_style() {
+    let selection = Selection::from([Selection::cursor(1)]);
+    let state = State::with_selection("a b", selection);
+    let view = EditorView::new().with_glyph_transformer(SpaceToDotTransformer);
+
+    let area = Rect::new(0, 0, 10, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(1, 0)].symbol(), "·");
+    assert!(buf[(1, 0)].style().add_modifier.contains(Modifier::REVERSED));
+}
+
+#[test]
+fn test_glyph_transformer_fallback_none() {
+    let state = State::from("a\tb c");
+    let view = EditorView::new().with_glyph_transformer(SpaceToDotTransformer);
+
+    let area = Rect::new(0, 0, 15, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(0, 0)].symbol(), "a");
+    // Tab rendered as default spaces
+    for col in 1..4 {
+        assert_eq!(buf[(col, 0)].symbol(), " ");
+    }
+    assert_eq!(buf[(4, 0)].symbol(), "b");
+    assert_eq!(buf[(5, 0)].symbol(), "·");
+    assert_eq!(buf[(6, 0)].symbol(), "c");
+}
+
+#[test]
+fn test_glyph_transformer_multiple_chain() {
+    let state = State::from(" \t");
+    let view = EditorView::new()
+        .with_glyph_transformer(SpaceToDotTransformer)
+        .with_glyph_transformer(TabArrowTransformer);
+
+    let area = Rect::new(0, 0, 10, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(0, 0)].symbol(), "·");
+    assert_eq!(buf[(1, 0)].symbol(), "─");
+    assert_eq!(buf[(2, 0)].symbol(), "─");
+    assert_eq!(buf[(3, 0)].symbol(), "→");
+}
+
+#[test]
+fn test_glyph_transformer_with_horizontal_scroll() {
+    // Put cursor at the end of the text (offset 5) so autoscroll doesn't reset scroll_x to 0
+    let state = State::with_selection("\ttext", Selection::from([Selection::cursor(5)]));
+    let view = EditorView::new().with_glyph_transformer(TabArrowTransformer);
+
+    let area = Rect::new(0, 0, 10, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+    view_state.set_scroll(2, 0);
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    // Tab spans visual columns 0..4 ('─', '─', '─', '→').
+    // With scroll_x = 2:
+    // Screen column 0 corresponds to visual col 2 ('─')
+    // Screen column 1 corresponds to visual col 3 ('→')
+    // Screen columns 2..6 correspond to "text"
+    assert_eq!(buf[(0, 0)].symbol(), "─");
+    assert_eq!(buf[(1, 0)].symbol(), "→");
+    assert_eq!(buf[(2, 0)].symbol(), "t");
+    assert_eq!(buf[(3, 0)].symbol(), "e");
+    assert_eq!(buf[(4, 0)].symbol(), "x");
+    assert_eq!(buf[(5, 0)].symbol(), "t");
+}
+
+#[test]
+fn test_glyph_transformer_cells_variant() {
+    let state = State::from("\t");
+    let view = EditorView::new().with_glyph_transformer(CellsTabTransformer);
+
+    let area = Rect::new(0, 0, 10, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(0, 0)].symbol(), "<");
+    assert_eq!(buf[(1, 0)].symbol(), "-");
+    assert_eq!(buf[(2, 0)].symbol(), "-");
+    assert_eq!(buf[(3, 0)].symbol(), ">");
+}
+
+#[test]
+fn test_glyph_transformer_reads_state_tab_size_facet() {
+    let state = State::from("\t").with_extensions(TabSize(2));
+    let view = EditorView::new().with_glyph_transformer(FacetCheckingTransformer);
+
+    let area = Rect::new(0, 0, 10, 2);
+    let mut buf = Buffer::empty(area);
+    let mut view_state = EditorViewState::new();
+
+    view.bind(&state).render(area, &mut buf, &mut view_state);
+
+    assert_eq!(buf[(0, 0)].symbol(), "─");
+    assert_eq!(buf[(1, 0)].symbol(), "→");
+    assert_eq!(buf[(2, 0)].symbol(), " ");
 }

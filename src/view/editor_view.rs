@@ -22,7 +22,7 @@ use ratatui::style::Style;
 use ratatui::widgets::StatefulWidget;
 use texera_core::State;
 
-use crate::traits::{DecorationProvider, Gutter, Highlight, ViewPlugin};
+use crate::traits::{DecorationProvider, GlyphTransformer, Gutter, Highlight, ViewPlugin};
 use crate::view::render::{render_editor, EditorThemeStyles};
 use crate::view::view_state::EditorViewState;
 
@@ -49,6 +49,7 @@ pub struct EditorView {
     pub(crate) highlighter: Option<Arc<dyn Highlight>>,
     pub(crate) decoration_providers: Vec<Arc<dyn DecorationProvider>>,
     pub(crate) plugins: Vec<Arc<dyn ViewPlugin>>,
+    pub(crate) glyph_transformers: Vec<Arc<dyn GlyphTransformer>>,
     pub(crate) theme_styles: EditorThemeStyles,
 }
 
@@ -77,6 +78,7 @@ impl EditorView {
             highlighter: None,
             decoration_providers: Vec::new(),
             plugins: Vec::new(),
+            glyph_transformers: Vec::new(),
             theme_styles: EditorThemeStyles::default(),
         }
     }
@@ -215,6 +217,20 @@ impl EditorView {
     /// ```
     pub fn with_plugin<P: ViewPlugin + 'static>(mut self, plugin: P) -> Self {
         self.plugins.push(Arc::new(plugin));
+        self
+    }
+
+    /// Attach a custom glyph transformer.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use texera::EditorView;
+    ///
+    /// let view = EditorView::new();
+    /// ```
+    pub fn with_glyph_transformer<T: GlyphTransformer + 'static>(mut self, transformer: T) -> Self {
+        self.glyph_transformers.push(Arc::new(transformer));
         self
     }
 

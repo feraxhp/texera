@@ -71,6 +71,9 @@ pub use traits::Decoration;
 pub use traits::ViewPlugin;
 pub use traits::Highlight;
 pub use traits::Gutter;
+pub use traits::GlyphContext;
+pub use traits::GlyphTransformer;
+pub use traits::TransformedGlyph;
 
 pub use view::EditorThemeStyles;
 pub use view::BoundEditorView;

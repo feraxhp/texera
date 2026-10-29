@@ -18,7 +18,7 @@ use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use texera_core::State;
 
-use crate::traits::Decoration;
+use crate::traits::{Decoration, GlyphContext, TransformedGlyph};
 use crate::view::editor_view::EditorView;
 use crate::view::view_state::EditorViewState;
 use crate::viewport::metrics::CellMetrics;
@@ -344,6 +344,37 @@ pub fn render_editor(
                 }
             }
 
+            // Layer 2.5: Glyph Transformation
+            let mut transformed_glyph = None;
+            if !view.glyph_transformers.is_empty() {
+                let ctx = GlyphContext {
+                    ch,
+                    cell_width: cell_w,
+                    visual_col,
+                    doc_char_offset,
+                    line_index: vline.logical_line_index,
+                    current_style: style,
+                    state,
+                };
+                for t in &view.glyph_transformers {
+                    if let Some(res) = t.transform(&ctx) {
+                        transformed_glyph = Some(res);
+                        break;
+                    }
+                }
+            }
+
+            if let Some(ref tr) = transformed_glyph {
+                let opt_style = match tr {
+                    TransformedGlyph::Char(_, s) => *s,
+                    TransformedGlyph::Tab { style: s, .. } => *s,
+                    TransformedGlyph::Cells(_, s) => *s,
+                };
+                if let Some(s) = opt_style {
+                    style = style.patch(s);
+                }
+            }
+
             // Layer 3: Text Selection (checked only against intervals overlapping this line)
             let is_selected = line_selections
                 .iter()
@@ -366,20 +397,59 @@ pub fn render_editor(
 
             // Draw character cells if within visible horizontal window
             if visual_col + cell_w > scroll_x && visual_col < scroll_x + (text_area_width as usize) {
-                let screen_x_offset = visual_col.saturating_sub(scroll_x);
-                let target_x = text_start_x + screen_x_offset as u16;
-
-                if target_x < area.right() {
-                    if ch == '\t' {
-                        // Render spaces for tabs
+                match transformed_glyph {
+                    Some(TransformedGlyph::Char(new_ch, _)) => {
+                        let screen_x_offset = visual_col.saturating_sub(scroll_x);
+                        let target_x = text_start_x + screen_x_offset as u16;
+                        if target_x < area.right() {
+                            buf[(target_x, screen_y)].set_char(new_ch).set_style(style);
+                        }
+                    }
+                    Some(TransformedGlyph::Tab { filler, terminator, .. }) => {
                         for sp in 0..cell_w {
-                            let tx = target_x + sp as u16;
-                            if tx < area.right() {
-                                buf[(tx, screen_y)].set_char(' ').set_style(style);
+                            let v_col = visual_col + sp;
+                            if v_col >= scroll_x && v_col < scroll_x + (text_area_width as usize) {
+                                let screen_x_offset = v_col - scroll_x;
+                                let target_x = text_start_x + screen_x_offset as u16;
+                                if target_x < area.right() {
+                                    let c = if sp == cell_w - 1 { terminator } else { filler };
+                                    buf[(target_x, screen_y)].set_char(c).set_style(style);
+                                }
                             }
                         }
-                    } else {
-                        buf[(target_x, screen_y)].set_char(ch).set_style(style);
+                    }
+                    Some(TransformedGlyph::Cells(cells, ..)) => {
+                        for sp in 0..cell_w {
+                            let v_col = visual_col + sp;
+                            if v_col >= scroll_x && v_col < scroll_x + (text_area_width as usize) {
+                                let screen_x_offset = v_col - scroll_x;
+                                let target_x = text_start_x + screen_x_offset as u16;
+                                if target_x < area.right() {
+                                    let c = cells.get(sp).copied().unwrap_or(' ');
+                                    buf[(target_x, screen_y)].set_char(c).set_style(style);
+                                }
+                            }
+                        }
+                    }
+                    None => {
+                        if ch == '\t' {
+                            for sp in 0..cell_w {
+                                let v_col = visual_col + sp;
+                                if v_col >= scroll_x && v_col < scroll_x + (text_area_width as usize) {
+                                    let screen_x_offset = v_col - scroll_x;
+                                    let target_x = text_start_x + screen_x_offset as u16;
+                                    if target_x < area.right() {
+                                        buf[(target_x, screen_y)].set_char(' ').set_style(style);
+                                    }
+                                }
+                            }
+                        } else {
+                            let screen_x_offset = visual_col.saturating_sub(scroll_x);
+                            let target_x = text_start_x + screen_x_offset as u16;
+                            if target_x < area.right() {
+                                buf[(target_x, screen_y)].set_char(ch).set_style(style);
+                            }
+                        }
                     }
                 }
             }
