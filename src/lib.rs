@@ -65,8 +65,8 @@ pub use input::Keymap;
 pub use plugins::CustomDecorationPlugin;
 pub use plugins::UnsavedLinePlugin;
 pub use plugins::HistoryCommander;
-#[cfg(feature = "whitespace")]
 pub use plugins::LineNumberPlugin;
+#[cfg(feature = "whitespace")]
 pub use plugins::WhitespacePlugin;
 pub use plugins::HistoryPlugin;
 
