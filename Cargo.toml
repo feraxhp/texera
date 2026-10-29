@@ -36,6 +36,10 @@ highlight = [
 ]
 
 [[example]]
+name = "whitespace_viewer"
+required-features = ["crossterm", "highlight"]
+
+[[example]]
 name = "terminal_editor"
 required-features = ["crossterm", "highlight"]
 
