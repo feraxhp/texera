@@ -19,15 +19,66 @@ use texera::{
 };
 use texera_core::{AllowMultipleSelections, State, TabSize};
 
+#[derive(Clone, Copy)]
+struct TabStylePreset {
+    name: &'static str,
+    filler: char,
+    terminator: char,
+}
+
+const TAB_PRESETS: &[TabStylePreset] = &[
+    TabStylePreset {
+        name: "ASCII Arrow (--->)",
+        filler: '-',
+        terminator: '>',
+    },
+    TabStylePreset {
+        name: "Box + ASCII (───>)",
+        filler: '─',
+        terminator: '>',
+    },
+    TabStylePreset {
+        name: "Box + Angle (───›)",
+        filler: '─',
+        terminator: '›',
+    },
+    TabStylePreset {
+        name: "Box + Triangle (───▸)",
+        filler: '─',
+        terminator: '▸',
+    },
+    TabStylePreset {
+        name: "Dot Guide (···>)",
+        filler: '·',
+        terminator: '>',
+    },
+    TabStylePreset {
+        name: "Space + Tab Symbol (   ⇥)",
+        filler: ' ',
+        terminator: '⇥',
+    },
+    TabStylePreset {
+        name: "Original Unicode (───→)",
+        filler: '─',
+        terminator: '→',
+    },
+];
+
 /// Whitespace visualizer plugin replacing spaces with dots and tabs with guided arrows.
 #[derive(Clone)]
 struct WhitespaceVisualizer {
     style: Style,
+    filler: char,
+    terminator: char,
 }
 
 impl WhitespaceVisualizer {
-    fn new(style: Style) -> Self {
-        Self { style }
+    fn new(style: Style, filler: char, terminator: char) -> Self {
+        Self {
+            style,
+            filler,
+            terminator,
+        }
     }
 }
 
@@ -38,8 +89,8 @@ impl GlyphTransformer for WhitespaceVisualizer {
         match ctx.ch {
             ' ' => Some(TransformedGlyph::Char('·', Some(self.style))),
             '\t' => Some(TransformedGlyph::Tab {
-                filler: '─',
-                terminator: '→',
+                filler: self.filler,
+                terminator: self.terminator,
                 style: Some(self.style),
             }),
             _ => None,
@@ -50,8 +101,9 @@ impl GlyphTransformer for WhitespaceVisualizer {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let initial_code = r#"// Whitespace Visualization Example
 //
-// Press [F4] to toggle whitespace visibility on/off.
+// Press [F4] to toggle whitespace on/off.
 // Press [F5] to cycle tab size: 2 -> 4 -> 8.
+// Press [F6] to cycle tab glyph styles.
 // Press [Esc] to exit.
 
 fn demo_whitespace() {
@@ -71,6 +123,7 @@ fn demo_whitespace() {
 
     let tab_sizes = [4, 2, 8];
     let mut tab_idx = 0;
+    let mut preset_idx = 0;
 
     let mut state = State::from(initial_code).with_extensions([
         HistoryPlugin::extension(None),
@@ -87,9 +140,7 @@ fn demo_whitespace() {
     let mut show_whitespace = true;
     let mut show_gutter = true;
     let mut wrap_enabled = false;
-    let mut status_message = "Ready. Press [F4] to toggle whitespace, [F5] to change tab size.".to_string();
-
-    let whitespace_plugin = WhitespaceVisualizer::new(Style::default().fg(Color::DarkGray));
+    let mut status_message = "Ready. [F6] cycles tab glyphs, [F4] toggles on/off, [F5] changes size.".to_string();
 
     enable_raw_mode()?;
     let mut stdout = stdout();
@@ -98,6 +149,13 @@ fn demo_whitespace() {
     let mut terminal = Terminal::new(backend)?;
 
     loop {
+        let current_preset = TAB_PRESETS[preset_idx];
+        let whitespace_plugin = WhitespaceVisualizer::new(
+            Style::default().fg(Color::DarkGray),
+            current_preset.filler,
+            current_preset.terminator,
+        );
+
         terminal.draw(|f| {
             let area = f.area();
             let chunks = Layout::default()
@@ -110,9 +168,10 @@ fn demo_whitespace() {
                 .split(area);
 
             let header = Paragraph::new(format!(
-                " Texera | [F4] Whitespace: {} | [F5] TabSize: {} | [F2] Gutter | [F3] Wrap | [Esc] Quit",
+                " Texera | [F4] Whitespace: {} | [F5] TabSize: {} | [F6] Style: {} | [Esc] Quit",
                 if show_whitespace { "ON" } else { "OFF" },
                 state.tab_size(),
+                current_preset.name,
             ))
             .style(Style::default().bg(Color::DarkGray).fg(Color::White));
             f.render_widget(header, chunks[0]);
@@ -134,21 +193,21 @@ fn demo_whitespace() {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Cyan))
                 .title(format!(
-                    " Whitespace Demo (TabSize: {}, Lines: {}) ",
-                    state.tab_size(),
-                    state.doc().len_lines()
+                    " Whitespace Demo (Tab: '{}' / '{}', TabSize: {}) ",
+                    current_preset.filler,
+                    current_preset.terminator,
+                    state.tab_size()
                 ));
             let inner_area = editor_block.inner(chunks[1]);
             f.render_widget(editor_block, chunks[1]);
             f.render_stateful_widget(view.bind(&state), inner_area, &mut view_state);
 
             let footer = Paragraph::new(format!(
-                " [{}] | Scroll: ({}, {}) | Whitespace: {} | TabSize: {}",
+                " [{}] | Scroll: ({}, {}) | Style: {}",
                 status_message,
                 view_state.scroll_x(),
                 view_state.scroll_y(),
-                if show_whitespace { "ON" } else { "OFF" },
-                state.tab_size()
+                current_preset.name
             ))
             .style(Style::default().bg(Color::DarkGray).fg(Color::Yellow));
             f.render_widget(footer, chunks[2]);
@@ -165,7 +224,7 @@ fn demo_whitespace() {
                 // Toggle Whitespace Plugin
                 if key_event.code == KeyCode::F(4) {
                     show_whitespace = !show_whitespace;
-                    status_message = format!("Whitespace visualizer: {}", if show_whitespace { "ENABLED" } else { "DISABLED" });
+                    status_message = format!("Whitespace: {}", if show_whitespace { "ENABLED" } else { "DISABLED" });
                     continue;
                 }
 
@@ -174,14 +233,22 @@ fn demo_whitespace() {
                     tab_idx = (tab_idx + 1) % tab_sizes.len();
                     let new_size = tab_sizes[tab_idx];
                     state = state.clone().with_extensions(TabSize(new_size));
-                    status_message = format!("Tab size updated to: {}", new_size);
+                    status_message = format!("Tab size: {}", new_size);
+                    continue;
+                }
+
+                // Cycle Tab Style Preset
+                if key_event.code == KeyCode::F(6) {
+                    preset_idx = (preset_idx + 1) % TAB_PRESETS.len();
+                    let next_preset = TAB_PRESETS[preset_idx];
+                    status_message = format!("Switched style to: {}", next_preset.name);
                     continue;
                 }
 
                 // Toggle Gutter
                 if key_event.code == KeyCode::F(2) {
                     show_gutter = !show_gutter;
-                    status_message = format!("Gutter visible: {}", show_gutter);
+                    status_message = format!("Gutter: {}", show_gutter);
                     continue;
                 }
 
